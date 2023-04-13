@@ -196,5 +196,4 @@
             <url>https://github.com/Appdynamics/maven-repo/raw/master/releases</url>
         </repository>
     </repositories>
-
 </project>
