@@ -1,5 +1,5 @@
 # Number of Threads for the Extension
-numberOfThreads: 23 # 7 tasks x 3 sub tasks + 2 extra
+numberOfThreads: 38 # 12 tasks x 3 sub tasks + 2 extra
 
 # <appTierName> must match the value in appTierName setting
 metricPrefix: "Server|Component:<appTierName>|Custom Metrics|Cluster Stats|"
@@ -35,6 +35,16 @@ rsSchemaName: "k8s_rs_snapshots"
 
 endpointSchemaName: "k8s_endpoint_snapshots"
 
+podsCrashStatusSchemaName: "k8s_pod_crash_status_snapshots"
+
+notRunningPodCountPerNodeSchemaName: "k8s_not_running_pod_count_per_node_snapshots"
+    
+podStatusMonitorSchemaName: "k8s_pod_status_monitor_snapshots"
+    
+podResourceQuotaSchemaName: "k8s_pod_resource_quota_snapshots"
+    
+namespaceQuotaUtilizationSchemaName: "k8s_namespace_resource_quota_utilization_snapshots"
+
 batchSize: "100"
 
 #APPD_PROXY_HOST
@@ -46,6 +56,7 @@ proxyUser: ""
 #APPD_PROXY_PASS
 proxyPass: ""
 
+customTags: #Add comma seperated tags/lables which needs to captured these will captured from resource metadata
 
 entities:
 - type: "pod"
@@ -55,6 +66,12 @@ entities:
 - type: "replica"
 - type: "event"
 - type: "endpoint"
+- type: "podResourceQuota"
+- type: "podResourceQuota"
+- type: "podStatusMonitor" 
+- type: "podCrashStatus"
+- type: "namespaceQuotaUtilization"
+- type: "notRunningPodsPerNode"
 
 # list of nodes to collect metrics for. If all nodes need to be monitored, set name to "all"
 nodes:
@@ -86,11 +103,12 @@ dashboardCheckInterval: "600"
 # Events Service Endpoint. These Default settings are for SaaS Users. Change if you are on Premise
 eventsUrl: "https://analytics.api.appdynamics.com"  # EVENTS_API_URL env var
 
-
 podsSchemaDefinition: '{
    "schema" : {
       "object_uid": "string",
+      "customLabels": "string",
       "clusterName": "string",
+      "deploymentName": "string",
       "creationTimestamp": "date",
       "deletionTimestamp": "date",
       "labels": "string",
@@ -136,11 +154,12 @@ podsSchemaDefinition: '{
       "terminationTime": "date",
       "mounts": "string"
    }
-}'
+ }'
 
 nodeSchemaDefinition: '{
   "schema" : {
       "nodeName": "string",
+      "customLabels": "string",
       "clusterName": "string",
       "podCIDR": "string",
       "taints": "string",
@@ -165,13 +184,15 @@ nodeSchemaDefinition: '{
       "ready": "string",
       "outOfDisk": "string",
       "memoryPressure": "string",
-      "diskPressure": "string"
+      "diskPressure": "string",
+      "notRunningPodCount":"integer"
   }
-}'
+ }'
 
 eventsSchemaDefinition: '{
    "schema" : {
       "firstTimestamp": "date",
+      "customLabels": "string",
       "object_kind": "string",
       "object_name": "string",
       "object_namespace": "string",
@@ -199,13 +220,14 @@ eventsSchemaDefinition: '{
       "source_host": "string",
       "reason": "string"
    }
-}'
+ }'
 
 
 deploySchemaDefinition: '{
   "schema": {
     "clusterName": "string",
     "name": "string",
+    "customLabels": "string",
     "namespace": "string",
     "object_uid": "string",
     "creationTimestamp": "date",
@@ -225,12 +247,13 @@ deploySchemaDefinition: '{
     "collisionCount": "integer",
     "replicasReady": "integer"
   }
-}'
+ }'
 
 daemonSchemaDefinition: '{
   "schema": {
     "clusterName": "string",
     "name": "string",
+    "customLabels": "string",
     "namespace": "string",
     "object_uid": "string",
     "creationTimestamp": "date",
@@ -246,7 +269,7 @@ daemonSchemaDefinition: '{
     "missScheduled": "integer",
     "updatedNumberScheduled": "integer"
   }
-}'
+ }'
 
 
 rsSchemaDefinition: '{
@@ -254,6 +277,7 @@ rsSchemaDefinition: '{
     "clusterName": "string",
     "name": "string",
     "namespace": "string",
+    "customLabels": "string",
     "object_uid": "string",
     "creationTimestamp": "date",
     "deletionTimestamp": "date",
@@ -264,7 +288,7 @@ rsSchemaDefinition: '{
     "replicasLabeled": "integer",
     "replicasReady": "integer"
   }
-}'
+ }'
 
 endpointSchemaDefinition: '{
   "schema": {
@@ -278,5 +302,76 @@ endpointSchemaDefinition: '{
     "ip_down": "integer",
     "downContext": "string"
   }
-}'
-
+ }'
+    
+podResourceQuotaSchemaDefinition: '{
+  "schema": {
+    "clusterName": "string",
+    "nodeName": "string",
+    "customLabels": "string",
+    "msServiceName": "string",
+    "podCount": "integer",
+    "cpuRequest": "float",
+    "cpuLimit": "float",
+    "memoryRequests": "float",
+    "memoryLimits": "float"
+  }
+ }'
+    
+namespaceQuotaUtilizationSchemaDefinition: '{
+   "schema": {
+     "namespace": "string",
+     "clusterName": "string",
+     "customLabels": "string",
+     "cpuRequestUsed": "float",
+     "cpuRequestTotal": "float",
+     "cpuLimitsUsed": "float",
+     "cpuLimitsTotal": "float",
+     "memoryRequestUsed": "float",
+     "memoryRequestTotal": "float",
+     "memoryLimitsUsed": "float",
+     "memoryLimitsTotal": "float"
+  }
+ }'
+    
+podStatusMonitorSchemaDefinition: '{
+   "schema": {
+     "clusterName": "string",
+     "customLabels": "string",
+     "nodeName": "string",
+     "namespace": "string",
+     "containerName": "string",
+     "deploymentName": "string",
+     "podName": "string",
+     "errorReason": "string",
+     "containerPhase": "string",
+     "restartCount": "integer"
+  }
+ }'
+    
+notRunningPodCountPerNodeSchemaDefinition: '{
+   "schema": {
+      "clusterName": "string",
+      "customLabels": "string",
+      "nodeName": "string",
+      "containerStatus": "string",
+      "notRunningPodCount": "integer",
+      "labels": "string"
+    }
+ }'
+     
+podsCrashStatusSchemaDefinition: '{
+  "schema": {
+     "clusterName": "string",
+     "customLabels": "string",
+     "nodeName": "string",
+     "namespace": "string",
+     "deploymentName": "string",
+     "containers": "string",
+     "podName": "string",
+     "errorReason": "string",
+     "containerPhase": "string",
+     "crashCount": "integer",
+     "restartCount": "integer"
+    }
+  }'

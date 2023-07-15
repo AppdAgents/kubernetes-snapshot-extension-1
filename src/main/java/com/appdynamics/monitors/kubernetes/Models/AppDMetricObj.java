@@ -14,6 +14,7 @@ public class AppDMetricObj {
     private String widgetName = "";
     private String namespace = "";
     private String node = "";
+    private String msServiceName = "";
     private String levelName = "";
     private String level = "";
 
@@ -22,7 +23,7 @@ public class AppDMetricObj {
     }
 
 
-    public AppDMetricObj(String name, String parentSchema, String schemaDefinitionName, String query, String rootPath, String namespace, String node){
+    public AppDMetricObj(String name, String parentSchema, String schemaDefinitionName, String query, String rootPath, String namespace, String node,String msServiceName){
         this.name = name;
         this.parentSchema = parentSchema;
         this.setParentSchemaDefinition(schemaDefinitionName);
@@ -34,6 +35,7 @@ public class AppDMetricObj {
         this.setWidgetName(this.metricToken);
         this.namespace = namespace;
         this.node = node;
+        this.msServiceName = msServiceName;
     }
 
     public String getName() {
@@ -111,6 +113,9 @@ public class AppDMetricObj {
         else if (node != null && !node.equals(ALL)){
             return node;
         }
+        else if (msServiceName != null){
+            return msServiceName;
+        }
         return "";
     }
 
@@ -121,6 +126,10 @@ public class AppDMetricObj {
         else if (node != null && !node.equals(ALL)){
             return "node";
         }
+        else if (msServiceName != null){
+            return "microserviceName";
+        }
         return "";
     }
+    
 }

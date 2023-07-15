@@ -1,18 +1,12 @@
 package com.appdynamics.monitors.kubernetes.SnapshotTasks;
 
-import com.appdynamics.extensions.MetricWriteHelper;
-import com.appdynamics.extensions.conf.MonitorConfiguration;
-import com.appdynamics.extensions.metrics.Metric;
-import com.appdynamics.monitors.kubernetes.Models.SummaryObj;
-import com.appdynamics.monitors.kubernetes.RestClient;
+import java.net.URL;
+import java.util.Map;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.net.URL;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.CountDownLatch;
+import com.appdynamics.monitors.kubernetes.RestClient;
 
 public class UploadEventsTask implements Runnable{
     private URL publishUrl;

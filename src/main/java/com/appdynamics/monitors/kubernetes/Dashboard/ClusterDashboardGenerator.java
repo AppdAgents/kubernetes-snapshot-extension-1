@@ -1,27 +1,28 @@
 package com.appdynamics.monitors.kubernetes.Dashboard;
 
-import com.appdynamics.extensions.AMonitorTaskRunnable;
-import com.appdynamics.monitors.kubernetes.Constants;
-import com.appdynamics.monitors.kubernetes.Models.AdqlSearchObj;
-import com.appdynamics.monitors.kubernetes.Models.AppDMetricObj;
-import com.appdynamics.monitors.kubernetes.RestClient;
-import com.appdynamics.monitors.kubernetes.Utilities;
-import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.ObjectWriter;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import org.json.simple.JSONObject;
-import org.json.simple.parser.JSONParser;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_DASH_NAME_SUFFIX;
+import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_DASH_TEMPLATE_PATH;
 
 import java.io.File;
 import java.io.FileReader;
 import java.util.ArrayList;
 import java.util.Map;
 
-import static com.appdynamics.monitors.kubernetes.Constants.*;
+import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.appdynamics.extensions.AMonitorTaskRunnable;
+import com.appdynamics.monitors.kubernetes.RestClient;
+import com.appdynamics.monitors.kubernetes.Utilities;
+import com.appdynamics.monitors.kubernetes.Models.AdqlSearchObj;
+import com.appdynamics.monitors.kubernetes.Models.AppDMetricObj;
+import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectWriter;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
 
 public class ClusterDashboardGenerator implements AMonitorTaskRunnable {

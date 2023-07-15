@@ -1,13 +1,16 @@
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata: 
   name: k8s-monitor
 spec: 
   replicas: 1
+  selector:
+    matchLabels:
+      app: k8s-monitor
   template: 
     metadata: 
       labels: 
-        name: k8s-monitor
+        app: k8s-monitor
     spec:
       serviceAccountName: k8s-monitor-sa
       containers:

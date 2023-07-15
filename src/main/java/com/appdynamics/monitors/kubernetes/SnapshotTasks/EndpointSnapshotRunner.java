@@ -1,36 +1,42 @@
 package com.appdynamics.monitors.kubernetes.SnapshotTasks;
 
-import com.appdynamics.extensions.TasksExecutionServiceProvider;
-import com.appdynamics.extensions.metrics.Metric;
-import com.appdynamics.extensions.util.AssertUtils;
-import com.appdynamics.monitors.kubernetes.Metrics.UploadMetricsTask;
-import com.appdynamics.monitors.kubernetes.Models.AppDMetricObj;
-import com.appdynamics.monitors.kubernetes.Models.SummaryObj;
-import com.appdynamics.monitors.kubernetes.RestClient;
-import com.appdynamics.monitors.kubernetes.Utilities;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.kubernetes.client.ApiClient;
-import io.kubernetes.client.Configuration;
-import io.kubernetes.client.apis.CoreV1Api;
-import io.kubernetes.client.models.V1EndpointAddress;
-import io.kubernetes.client.models.V1EndpointSubset;
-import io.kubernetes.client.models.V1Endpoints;
-import io.kubernetes.client.models.V1EndpointsList;
+import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_RECS_BATCH_SIZE;
+import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_SCHEMA_DEF_EP;
+import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_SCHEMA_NAME_EP;
+import static com.appdynamics.monitors.kubernetes.Constants.K8S_VERSION;
+import static com.appdynamics.monitors.kubernetes.Constants.OPENSHIFT_VERSION;
+import static com.appdynamics.monitors.kubernetes.Utilities.ALL;
+import static com.appdynamics.monitors.kubernetes.Utilities.checkAddInt;
+import static com.appdynamics.monitors.kubernetes.Utilities.checkAddObject;
+import static com.appdynamics.monitors.kubernetes.Utilities.ensureSchema;
+import static com.appdynamics.monitors.kubernetes.Utilities.incrementField;
 
 import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 
-import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_RECS_BATCH_SIZE;
-import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_SCHEMA_DEF_EP;
-import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_SCHEMA_NAME_EP;
-import static com.appdynamics.monitors.kubernetes.Utilities.*;
+import com.appdynamics.extensions.TasksExecutionServiceProvider;
+import com.appdynamics.extensions.metrics.Metric;
+import com.appdynamics.extensions.util.AssertUtils;
+import com.appdynamics.monitors.kubernetes.KubernetesClientSingleton;
+import com.appdynamics.monitors.kubernetes.Utilities;
+import com.appdynamics.monitors.kubernetes.Metrics.UploadMetricsTask;
+import com.appdynamics.monitors.kubernetes.Models.AppDMetricObj;
+import com.appdynamics.monitors.kubernetes.Models.SummaryObj;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+
+import io.kubernetes.client.openapi.ApiClient;
+import io.kubernetes.client.openapi.Configuration;
+import io.kubernetes.client.openapi.apis.CoreV1Api;
+import io.kubernetes.client.openapi.models.V1EndpointAddress;
+import io.kubernetes.client.openapi.models.V1EndpointSubset;
+import io.kubernetes.client.openapi.models.V1Endpoints;
+import io.kubernetes.client.openapi.models.V1EndpointsList;
 
 public class EndpointSnapshotRunner extends SnapshotRunnerBase {
 
@@ -62,21 +68,24 @@ public class EndpointSnapshotRunner extends SnapshotRunnerBase {
                 V1EndpointsList epList;
                 try {
 
-                    ApiClient client = Utilities.initClient(config);
-                    this.setAPIServerTimeout(client, K8S_API_TIMEOUT);
-                    Configuration.setDefaultApiClient(client);
-                    CoreV1Api api = new CoreV1Api();
-                    this.setCoreAPIServerTimeout(api, K8S_API_TIMEOUT);
+                	ApiClient client = KubernetesClientSingleton.getInstance(config);
+    				CoreV1Api api =KubernetesClientSingleton.getCoreV1ApiClient(config);
+    			    this.setAPIServerTimeout(KubernetesClientSingleton.getInstance(config), K8S_API_TIMEOUT);
+    	            Configuration.setDefaultApiClient(client);
+    	            this.setCoreAPIServerTimeout(api, K8S_API_TIMEOUT);
 
-                    epList = api.listEndpointsForAllNamespaces(null,
-                            null,
-                            null,
-                            null,
-                            null,
-                            null,
-                            null,
-                            null,
-                            null);
+                    epList = api.listEndpointsForAllNamespaces(
+                    		false, //allow Watch bookmarks
+                    		null,  //_continue - relevant for pagination
+                    		null,  //fieldSelector
+                    		null,  //labelSelector
+                    		null,  //limit the number of records
+                    		null,  //pretty output
+                    		null,  //resourseVersion
+                    		null,  //resourceVersionMatch
+                    		K8S_API_TIMEOUT, //timeout in sec
+                    		false // isWatch
+                    		);
                 }
                 catch (Exception ex){
                     throw new Exception("Unable to connect to Kubernetes API server because it may be unavailable or the cluster credentials are invalid", ex);
@@ -130,8 +139,12 @@ public class EndpointSnapshotRunner extends SnapshotRunnerBase {
             incrementField(summary, "Endpoints");
             incrementField(summaryNamespace, "Endpoints");
 
-
-
+            if(!OPENSHIFT_VERSION.isEmpty()) {
+	        	objectNode = checkAddObject(objectNode,OPENSHIFT_VERSION, "openshiftVersion");
+	        }
+	        if(!K8S_VERSION.isEmpty()) {
+	        	objectNode = checkAddObject(objectNode,K8S_VERSION, "kubernetesVersion");	        	
+	        }
             objectNode = checkAddObject(objectNode, ep.getMetadata().getUid(), "object_uid");
             objectNode = checkAddObject(objectNode, clusterName, "clusterName");
             objectNode = checkAddObject(objectNode, ep.getMetadata().getCreationTimestamp(), "creationTimestamp");
@@ -239,16 +252,16 @@ public class EndpointSnapshotRunner extends SnapshotRunnerBase {
 
         if(namespace.equals(ALL)) {
             metricsList.add(new AppDMetricObj("Endpoints", parentSchema, CONFIG_SCHEMA_DEF_EP,
-                    String.format("select * from %s where clusterName = \"%s\" %s ORDER BY creationTimestamp DESC", parentSchema, clusterName, filter), rootPath, namespace, ALL));
+                    String.format("select * from %s where clusterName = \"%s\" %s ORDER BY creationTimestamp DESC", parentSchema, clusterName, filter), rootPath, namespace, ALL,null));
 
             metricsList.add(new AppDMetricObj("HealthyEndpoints", parentSchema, CONFIG_SCHEMA_DEF_EP,
-                    String.format("select * from %s where ip_up > 0 and clusterName = \"%s\" %s ORDER BY creationTimestamp DESC", parentSchema, clusterName, filter), rootPath, namespace, ALL));
+                    String.format("select * from %s where ip_up > 0 and clusterName = \"%s\" %s ORDER BY creationTimestamp DESC", parentSchema, clusterName, filter), rootPath, namespace, ALL,null));
 
             metricsList.add(new AppDMetricObj("UnhealthyEndpoints", parentSchema, CONFIG_SCHEMA_DEF_EP,
-                    String.format("select * from %s where ip_down > 0 and clusterName = \"%s\" %s ORDER BY creationTimestamp DESC", parentSchema, clusterName, filter), rootPath, namespace, ALL));
+                    String.format("select * from %s where ip_down > 0 and clusterName = \"%s\" %s ORDER BY creationTimestamp DESC", parentSchema, clusterName, filter), rootPath, namespace, ALL,null));
 
             metricsList.add(new AppDMetricObj("OrphanEndpoints", parentSchema, CONFIG_SCHEMA_DEF_EP,
-                    String.format("select * from %s where ip_down = 0 and ip_up = 0 and clusterName = \"%s\" %s ORDER BY creationTimestamp DESC", parentSchema, clusterName, filter), rootPath, namespace, ALL));
+                    String.format("select * from %s where ip_down = 0 and ip_up = 0 and clusterName = \"%s\" %s ORDER BY creationTimestamp DESC", parentSchema, clusterName, filter), rootPath, namespace, ALL,null));
         }
         return metricsList;
     }

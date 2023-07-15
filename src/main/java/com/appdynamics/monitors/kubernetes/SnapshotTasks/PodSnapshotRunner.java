@@ -1,30 +1,58 @@
 package com.appdynamics.monitors.kubernetes.SnapshotTasks;
 
+import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_RECS_BATCH_SIZE;
+import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_SCHEMA_DEF_POD;
+import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_SCHEMA_NAME_POD;
+import static com.appdynamics.monitors.kubernetes.Constants.K8S_VERSION;
+import static com.appdynamics.monitors.kubernetes.Constants.OPENSHIFT_VERSION;
+import static com.appdynamics.monitors.kubernetes.Utilities.ALL;
+import static com.appdynamics.monitors.kubernetes.Utilities.checkAddBoolean;
+import static com.appdynamics.monitors.kubernetes.Utilities.checkAddFloat;
+import static com.appdynamics.monitors.kubernetes.Utilities.checkAddInt;
+import static com.appdynamics.monitors.kubernetes.Utilities.checkAddLong;
+import static com.appdynamics.monitors.kubernetes.Utilities.checkAddObject;
+
+import java.math.BigDecimal;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.CountDownLatch;
+
 import com.appdynamics.extensions.TasksExecutionServiceProvider;
 import com.appdynamics.extensions.metrics.Metric;
 import com.appdynamics.extensions.util.AssertUtils;
+import com.appdynamics.monitors.kubernetes.Globals;
+import com.appdynamics.monitors.kubernetes.Utilities;
 import com.appdynamics.monitors.kubernetes.Metrics.UploadMetricsTask;
 import com.appdynamics.monitors.kubernetes.Models.AppDMetricObj;
 import com.appdynamics.monitors.kubernetes.Models.SummaryObj;
-import com.appdynamics.monitors.kubernetes.RestClient;
-import com.appdynamics.monitors.kubernetes.Utilities;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.kubernetes.client.ApiClient;
-import io.kubernetes.client.Configuration;
-import io.kubernetes.client.apis.CoreV1Api;
+
 import io.kubernetes.client.custom.Quantity;
-import io.kubernetes.client.models.*;
-
-import java.io.IOException;
-import java.math.BigDecimal;
-import java.net.URL;
-import java.util.*;
-import java.util.concurrent.CountDownLatch;
-
-import static com.appdynamics.monitors.kubernetes.Constants.*;
-import static com.appdynamics.monitors.kubernetes.Utilities.*;
+import io.kubernetes.client.openapi.ApiException;
+import io.kubernetes.client.openapi.apis.AppsV1Api;
+import io.kubernetes.client.openapi.models.V1Container;
+import io.kubernetes.client.openapi.models.V1ContainerPort;
+import io.kubernetes.client.openapi.models.V1ContainerState;
+import io.kubernetes.client.openapi.models.V1ContainerStatus;
+import io.kubernetes.client.openapi.models.V1NodeAffinity;
+import io.kubernetes.client.openapi.models.V1NodeSelector;
+import io.kubernetes.client.openapi.models.V1NodeSelectorRequirement;
+import io.kubernetes.client.openapi.models.V1NodeSelectorTerm;
+import io.kubernetes.client.openapi.models.V1ObjectMeta;
+import io.kubernetes.client.openapi.models.V1OwnerReference;
+import io.kubernetes.client.openapi.models.V1Pod;
+import io.kubernetes.client.openapi.models.V1PodCondition;
+import io.kubernetes.client.openapi.models.V1PodList;
+import io.kubernetes.client.openapi.models.V1PreferredSchedulingTerm;
+import io.kubernetes.client.openapi.models.V1ReplicaSet;
+import io.kubernetes.client.openapi.models.V1Toleration;
+import io.kubernetes.client.openapi.models.V1VolumeMount;
 
 public class PodSnapshotRunner extends SnapshotRunnerBase {
 
@@ -43,10 +71,7 @@ public class PodSnapshotRunner extends SnapshotRunnerBase {
         generatePodSnapshot();
     }
 
-//    "request_cpu", "float",
-//            "request_memory", "float",
-//            "limit_cpu", "float",
-//            "limit_memory", "float",
+
 
     private void generatePodSnapshot(){
         logger.info("Proceeding to POD update...");
@@ -57,29 +82,9 @@ public class PodSnapshotRunner extends SnapshotRunnerBase {
             URL publishUrl = Utilities.ensureSchema(config, apiKey, accountName,CONFIG_SCHEMA_NAME_POD, CONFIG_SCHEMA_DEF_POD);
 
             try {
-                V1PodList podList;
+                V1PodList podList=Globals.K8S_POD_LIST;
 
-                try {
-                    ApiClient client = Utilities.initClient(config);
-                    this.setAPIServerTimeout(client, K8S_API_TIMEOUT);
-                    Configuration.setDefaultApiClient(client);
-                    CoreV1Api api = new CoreV1Api();
-
-                    this.setCoreAPIServerTimeout(api, K8S_API_TIMEOUT);
-                    podList = api.listPodForAllNamespaces(null,
-                            null,
-                            null,
-                            null,
-                            null,
-                            null,
-                            null,
-                            null,
-                            null);
-                }
-                catch (Exception ex){
-                    throw new Exception("Unable to connect to Kubernetes API server because it may be unavailable or the cluster credentials are invalid", ex);
-                }
-
+  
                 createPodPayload(podList, config, publishUrl, accountName, apiKey);
 
                 //build and update metrics
@@ -89,22 +94,19 @@ public class PodSnapshotRunner extends SnapshotRunnerBase {
                 getConfiguration().getExecutorService().execute("UploadMetricsTask", podMetricsTask);
 
                 //check searches
-            } catch (IOException e) {
-                countDownLatch.countDown();
-                logger.error("Failed to push POD data", e);
             } catch (Exception e) {
                 countDownLatch.countDown();
                 logger.error("Failed to push POD data", e);
-            }
+            } 
         }
     }
 
-     ArrayNode createPodPayload(V1PodList podList, Map<String, String> config, URL publishUrl, String accountName, String apiKey){
+     ArrayNode createPodPayload(V1PodList podList, Map<String, String> config, URL publishUrl, String accountName, String apiKey) throws ApiException{
         ObjectMapper mapper = new ObjectMapper();
         ArrayNode arrayNode = mapper.createArrayNode();
 
         long batchSize = Long.parseLong(config.get(CONFIG_RECS_BATCH_SIZE));
-
+                
         for(V1Pod podItem : podList.getItems()){
 
             ObjectNode podObject = mapper.createObjectNode();
@@ -112,15 +114,20 @@ public class PodSnapshotRunner extends SnapshotRunnerBase {
             String nodeName = podItem.getSpec().getNodeName();
 
             if (namespace == null || namespace.isEmpty()){
-                logger.info(String.format("Pod %s missing namespace attribution", podItem.getMetadata().getName()));
+                logger.info("Pod {} missing namespace attribution", podItem.getMetadata().getName());
             }
 
             if (nodeName == null || nodeName.isEmpty()){
-                logger.info(String.format("Pod %s missing node attribution", podItem.getMetadata().getName()));
+                logger.info("Pod {} missing node attribution", podItem.getMetadata().getName());
             }
 
             String clusterName = Utilities.ensureClusterName(config, podItem.getMetadata().getClusterName());
 
+            ObjectNode labelsObject = Utilities.getResourceLabels(config,mapper, podItem);
+            podObject=checkAddObject(podObject, labelsObject, "customLabels") ; 
+
+            
+            
             SummaryObj summary = getSummaryMap().get(ALL);
             if (summary == null) {
                 summary = initPodSummaryObject(config, ALL, ALL);
@@ -153,16 +160,7 @@ public class PodSnapshotRunner extends SnapshotRunnerBase {
             podObject = checkAddObject(podObject, podItem.getMetadata().getCreationTimestamp(), "creationTimestamp");
             podObject = checkAddObject(podObject, podItem.getMetadata().getDeletionTimestamp(), "deletionTimestamp");
 
-            if (podItem.getMetadata().getLabels() != null) {
-                String labels = "";
-                Iterator it = podItem.getMetadata().getLabels().entrySet().iterator();
-                while (it.hasNext()) {
-                    Map.Entry pair = (Map.Entry)it.next();
-                    labels += String.format("%s:%s;", pair.getKey(), pair.getValue());
-                    it.remove();
-                }
-                podObject = checkAddObject(podObject, labels, "labels");
-            }
+
 
             if (podItem.getMetadata().getAnnotations() != null){
                 String annotations = "";
@@ -284,6 +282,10 @@ public class PodSnapshotRunner extends SnapshotRunnerBase {
                 Utilities.incrementField(summaryNamespace, "Running");
                 Utilities.incrementField(summaryNode, "Running");
             }
+            
+            if (!"Running".equalsIgnoreCase(phase)) {
+            	Utilities.incrementField(summaryNode, "NotRunningPodCount");
+            }
 
             podObject = checkAddObject(podObject, podItem.getStatus().getPodIP(), "podIP");
             podObject = checkAddObject(podObject, podItem.getStatus().getReason(), "reason");
@@ -310,6 +312,8 @@ public class PodSnapshotRunner extends SnapshotRunnerBase {
             String images = "";
             String waitReasons = "";
             String termReasons = "";
+    	    StringBuilder containerStatusBuilder = new StringBuilder();
+
             if (podItem.getStatus().getContainerStatuses() != null){
                 for(V1ContainerStatus status : podItem.getStatus().getContainerStatuses()){
 
@@ -330,9 +334,17 @@ public class PodSnapshotRunner extends SnapshotRunnerBase {
                     if (status.getState().getRunning() != null) {
                         podObject = checkAddObject(podObject, status.getState().getRunning().getStartedAt(), "runningStartTime");
                     }
+                    String containerName = status.getName();
+	                String containerState = getContainerState(status.getState());
+	                containerStatusBuilder.append(containerName).append(": ").append(containerState).append(", ");
                 }
                 //container data
-                podObject = checkAddObject(podObject, contStates, "containerStates");
+               if(containerStatusBuilder.length()>1)
+               {
+            	   podObject = checkAddObject(podObject, containerStatusBuilder.substring(0, containerStatusBuilder.length()-2), "containerStates");	
+               }else{
+            	   podObject = checkAddObject(podObject, "", "containerStates");
+               }
                 podObject = checkAddObject(podObject, images, "images");
                 podObject = checkAddObject(podObject, waitReasons, "waitReasons");
                 podObject = checkAddObject(podObject, termReasons, "termReasons");
@@ -358,7 +370,7 @@ public class PodSnapshotRunner extends SnapshotRunnerBase {
                 if (container.getSecurityContext() != null ){
 
                     try {
-                        if (Boolean.TRUE.equals(container.getSecurityContext().isPrivileged())) {
+                        if (Boolean.TRUE.equals(container.getSecurityContext().getPrivileged())) {
                             numPrivileged++;
                         }
                     }
@@ -417,7 +429,8 @@ public class PodSnapshotRunner extends SnapshotRunnerBase {
             }
 
             podObject = checkAddBoolean(podObject, limitsDefined, "limitsDefined");
-
+            
+            
 
             podObject =  checkAddFloat(podObject, cpuRequest, "cpuRequest");
             podObject =  checkAddFloat(podObject, memRequest, "memRequest");
@@ -469,6 +482,14 @@ public class PodSnapshotRunner extends SnapshotRunnerBase {
             podObject = checkAddInt(podObject, numLive, "liveProbes");
             podObject = checkAddInt(podObject, numReady, "readyProbes");
             podObject = checkAddInt(podObject, numPrivileged, "numPrivileged");
+            
+            podObject = checkAddObject(podObject, getDeploymentName(podItem), "deploymentName");
+            if(!OPENSHIFT_VERSION.isEmpty()) {
+            	podObject = checkAddObject(podObject,OPENSHIFT_VERSION,"openshiftVersion");
+            }
+            if(!K8S_VERSION.isEmpty()) {
+	        	podObject = checkAddObject(podObject,K8S_VERSION, "kubernetesVersion");	        	
+	        }
             arrayNode.add(podObject);
             if (arrayNode.size() >= batchSize){
                 logger.info("Sending batch of {} Pod records", arrayNode.size());
@@ -492,6 +513,63 @@ public class PodSnapshotRunner extends SnapshotRunnerBase {
         return  arrayNode;
     }
 
+
+    
+     private String getDeploymentName(V1Pod pod) throws ApiException {
+		 // Get the metadata of the pod
+        V1ObjectMeta metadata = pod.getMetadata();
+
+        // Get the owner references from the pod's metadata
+        List<V1OwnerReference> ownerReferences = metadata.getOwnerReferences();
+        
+
+
+        AppsV1Api appsApi = new AppsV1Api();
+        
+        // Find the owner reference with the "ReplicaSet" kind
+        V1OwnerReference replicaSetReference = null;
+        if (ownerReferences !=null) {
+            for (V1OwnerReference ref : ownerReferences) {
+                if (ref.getKind().equals("ReplicaSet")) {
+                    replicaSetReference = ref;
+                    break;
+                }
+            }
+
+            if (replicaSetReference != null) {
+                String replicaSetName = replicaSetReference.getName();
+
+                // Get the ReplicaSet object
+                V1ReplicaSet replicaSet = appsApi.readNamespacedReplicaSet(replicaSetName,pod.getMetadata().getNamespace(), null);
+
+                // Get the owner references from the ReplicaSet's metadata
+                List<V1OwnerReference> rsOwnerReferences = replicaSet.getMetadata().getOwnerReferences();
+
+                // Find the owner reference with the "Deployment" kind
+                V1OwnerReference deploymentReference = null;
+                if(rsOwnerReferences!=null) {
+	                for (V1OwnerReference ref : rsOwnerReferences) {
+	                    if (ref.getKind().equals("Deployment")) {
+	                        deploymentReference = ref;
+	                        break;
+	                    }
+	                }
+                }
+                else {
+                	
+                	logger.info("rsOwnerReferences is null for {} and {}",replicaSetName , replicaSet.getMetadata().getName() );
+                }
+
+                if (deploymentReference != null) {
+                    String deploymentName = deploymentReference.getName();
+                   return deploymentName;
+                }
+            } 
+        }
+		return "";
+	}
+	
+ 	
     protected SummaryObj initDefaultSummaryObject(Map<String, String> config){
         return initPodSummaryObject(config, ALL, ALL);
     }
@@ -500,7 +578,6 @@ public class PodSnapshotRunner extends SnapshotRunnerBase {
         ObjectMapper mapper = new ObjectMapper();
         ObjectNode summary = mapper.createObjectNode();
         summary.put("namespace", namespace);
-        summary.put("nodename", node);
 
         summary.put("Pods", 0);
         summary.put("Evictions", 0);
@@ -508,6 +585,7 @@ public class PodSnapshotRunner extends SnapshotRunnerBase {
         summary.put("Running", 0);
         summary.put("Failed", 0);
         summary.put("Pending", 0);
+        summary.put("NotRunningPodCount", 0);
         if (namespace != null && namespace.equals(ALL) && node != null && node.equals(ALL)) {
             summary.put("Containers", 0);
             summary.put("InitContainers", 0);
@@ -557,50 +635,65 @@ public class PodSnapshotRunner extends SnapshotRunnerBase {
         if (namespace != null && namespace.equals(ALL) && node != null && node.equals(ALL)) {
 
             metricsList.add(new AppDMetricObj("Pods", parentSchema, CONFIG_SCHEMA_DEF_POD,
-                    String.format("select * from %s where clusterName = \"%s\" %s ORDER BY creationTimestamp DESC", parentSchema, clusterName, filter), rootPath, namespace, node));
+                    String.format("select * from %s where clusterName = \"%s\" %s ORDER BY creationTimestamp DESC", parentSchema, clusterName, filter), rootPath, namespace, node,null));
             metricsList.add(new AppDMetricObj("Containers", parentSchema, CONFIG_SCHEMA_DEF_POD,
-                    String.format("select * from %s where containerCount > 0 and clusterName = \"%s\" %s ORDER BY creationTimestamp DESC", parentSchema, clusterName, filter), rootPath, namespace, node));
+                    String.format("select * from %s where containerCount > 0 and clusterName = \"%s\" %s ORDER BY creationTimestamp DESC", parentSchema, clusterName, filter), rootPath, namespace, node,null));
             metricsList.add(new AppDMetricObj("InitContainers", parentSchema, CONFIG_SCHEMA_DEF_POD,
-                    String.format("select * from %s where initContainerCount > 0 and clusterName = \"%s\" %s ORDER BY creationTimestamp DESC", parentSchema, clusterName, filter), rootPath, namespace, node));
+                    String.format("select * from %s where initContainerCount > 0 and clusterName = \"%s\" %s ORDER BY creationTimestamp DESC", parentSchema, clusterName, filter), rootPath, namespace, node,null));
             metricsList.add(new AppDMetricObj("Evictions", parentSchema, CONFIG_SCHEMA_DEF_POD,
-                    String.format("select * from %s where reason = \"Evicted\" and clusterName = \"%s\" %s ORDER BY creationTimestamp DESC", parentSchema, clusterName, filter), rootPath, namespace, node));
+                    String.format("select * from %s where reason = \"Evicted\" and clusterName = \"%s\" %s ORDER BY creationTimestamp DESC", parentSchema, clusterName, filter), rootPath, namespace, node,null));
             metricsList.add(new AppDMetricObj("PodRestarts", parentSchema, CONFIG_SCHEMA_DEF_POD,
-                    String.format("select * from %s where podRestarts > 0 and clusterName = \"%s\" %s ORDER BY creationTimestamp DESC", parentSchema, clusterName, filter), rootPath, namespace, node));
+                    String.format("select * from %s where podRestarts > 0 and clusterName = \"%s\" %s ORDER BY creationTimestamp DESC", parentSchema, clusterName, filter), rootPath, namespace, node,null));
             metricsList.add(new AppDMetricObj("Running", parentSchema, CONFIG_SCHEMA_DEF_POD,
-                    String.format("select * from %s where phase = \"Running\" and clusterName = \"%s\" %s ORDER BY creationTimestamp DESC", parentSchema, clusterName, filter), rootPath, namespace, node));
+                    String.format("select * from %s where phase = \"Running\" and clusterName = \"%s\" %s ORDER BY creationTimestamp DESC", parentSchema, clusterName, filter), rootPath, namespace, node,null));
             metricsList.add(new AppDMetricObj("Failed", parentSchema, CONFIG_SCHEMA_DEF_POD,
-                    String.format("select * from %s where phase = \"Failed\" and clusterName = \"%s\" %s ORDER BY creationTimestamp DESC", parentSchema, clusterName, filter), rootPath, namespace, node));
+                    String.format("select * from %s where phase = \"Failed\" and clusterName = \"%s\" %s ORDER BY creationTimestamp DESC", parentSchema, clusterName, filter), rootPath, namespace, node,null));
             metricsList.add(new AppDMetricObj("Pending", parentSchema, CONFIG_SCHEMA_DEF_POD,
-                    String.format("select * from %s where phase = \"Pending\" and clusterName = \"%s\" %s ORDER BY creationTimestamp DESC", parentSchema, clusterName, filter), rootPath, namespace, node));
+                    String.format("select * from %s where phase = \"Pending\" and clusterName = \"%s\" %s ORDER BY creationTimestamp DESC", parentSchema, clusterName, filter), rootPath, namespace, node,null));
             metricsList.add(new AppDMetricObj("NoLimits", parentSchema, CONFIG_SCHEMA_DEF_POD,
-                    String.format("select * from %s where limitsDefined = false and clusterName = \"%s\" %s ORDER BY creationTimestamp DESC", parentSchema, clusterName, filter), rootPath, namespace, node));
+                    String.format("select * from %s where limitsDefined = false and clusterName = \"%s\" %s ORDER BY creationTimestamp DESC", parentSchema, clusterName, filter), rootPath, namespace, node,null));
             metricsList.add(new AppDMetricObj("NoReadinessProbe", parentSchema, CONFIG_SCHEMA_DEF_POD,
-                    String.format("select * from %s where readyProbes = 0 and clusterName = \"%s\" %s ORDER BY creationTimestamp DESC", parentSchema, clusterName, filter), rootPath, namespace, node));
+                    String.format("select * from %s where readyProbes = 0 and clusterName = \"%s\" %s ORDER BY creationTimestamp DESC", parentSchema, clusterName, filter), rootPath, namespace, node,null));
             metricsList.add(new AppDMetricObj("NoLivenessProbe", parentSchema, CONFIG_SCHEMA_DEF_POD,
-                    String.format("select * from %s where liveProbes = 0 and clusterName = \"%s\" %s ORDER BY creationTimestamp DESC", parentSchema, clusterName, filter), rootPath, namespace, node));
+                    String.format("select * from %s where liveProbes = 0 and clusterName = \"%s\" %s ORDER BY creationTimestamp DESC", parentSchema, clusterName, filter), rootPath, namespace, node,null));
             metricsList.add(new AppDMetricObj("Privileged", parentSchema, CONFIG_SCHEMA_DEF_POD,
-                    String.format("select * from %s where numPrivileged > 0 and clusterName = \"%s\" %s ORDER BY creationTimestamp DESC", parentSchema, clusterName, filter), rootPath, namespace, node));
+                    String.format("select * from %s where numPrivileged > 0 and clusterName = \"%s\" %s ORDER BY creationTimestamp DESC", parentSchema, clusterName, filter), rootPath, namespace, node,null));
 
             metricsList.add(new AppDMetricObj("RequestCpu", parentSchema, CONFIG_SCHEMA_DEF_POD,
-                    String.format("select * from %s where cpuRequest > 0 and clusterName = \"%s\" %s ORDER BY creationTimestamp DESC", parentSchema, clusterName, filter), rootPath, namespace, node));
+                    String.format("select * from %s where cpuRequest > 0 and clusterName = \"%s\" %s ORDER BY creationTimestamp DESC", parentSchema, clusterName, filter), rootPath, namespace, node,null));
             metricsList.add(new AppDMetricObj("RequestMemory", parentSchema, CONFIG_SCHEMA_DEF_POD,
-                    String.format("select * from %s where memRequest > 0 and clusterName = \"%s\" %s ORDER BY creationTimestamp DESC", parentSchema, clusterName, filter), rootPath, namespace, node));
+                    String.format("select * from %s where memRequest > 0 and clusterName = \"%s\" %s ORDER BY creationTimestamp DESC", parentSchema, clusterName, filter), rootPath, namespace, node,null));
             metricsList.add(new AppDMetricObj("LimitCpu", parentSchema, CONFIG_SCHEMA_DEF_POD,
-                    String.format("select * from %s where cpuLimit > 0 and clusterName = \"%s\" %s ORDER BY creationTimestamp DESC", parentSchema, clusterName, filter), rootPath, namespace, node));
+                    String.format("select * from %s where cpuLimit > 0 and clusterName = \"%s\" %s ORDER BY creationTimestamp DESC", parentSchema, clusterName, filter), rootPath, namespace, node,null));
             metricsList.add(new AppDMetricObj("LimitMemory", parentSchema, CONFIG_SCHEMA_DEF_POD,
-                    String.format("select * from %s where memLimit > 0 and clusterName = \"%s\" %s ORDER BY creationTimestamp DESC", parentSchema, clusterName, filter), rootPath, namespace, node));
+                    String.format("select * from %s where memLimit > 0 and clusterName = \"%s\" %s ORDER BY creationTimestamp DESC", parentSchema, clusterName, filter), rootPath, namespace, node,null));
             metricsList.add(new AppDMetricObj("TolerationsCount", parentSchema, CONFIG_SCHEMA_DEF_POD,
-                    String.format("select * from %s where tolerations IS NOT NULL and clusterName = \"%s\" %s ORDER BY creationTimestamp DESC", parentSchema, clusterName, filter), rootPath, namespace, node));
+                    String.format("select * from %s where tolerations IS NOT NULL and clusterName = \"%s\" %s ORDER BY creationTimestamp DESC", parentSchema, clusterName, filter), rootPath, namespace, node,null));
 
             metricsList.add(new AppDMetricObj("HasNodeAffinity", parentSchema, CONFIG_SCHEMA_DEF_POD,
-                    String.format("select * from %s where (nodeAffinityPreferred IS NOT NULL Or nodeAffinityRequired IS NOT NULL) and clusterName = \"%s\" %s ORDER BY creationTimestamp DESC", parentSchema, clusterName, filter), rootPath, namespace, node));
+                    String.format("select * from %s where (nodeAffinityPreferred IS NOT NULL Or nodeAffinityRequired IS NOT NULL) and clusterName = \"%s\" %s ORDER BY creationTimestamp DESC", parentSchema, clusterName, filter), rootPath, namespace, node,null));
             metricsList.add(new AppDMetricObj("HasPodAffinity", parentSchema, CONFIG_SCHEMA_DEF_POD,
-                    String.format("select * from %s where hasPodAffinity = true and clusterName = \"%s\" %s ORDER BY creationTimestamp DESC", parentSchema, clusterName, filter), rootPath, namespace, node));
+                    String.format("select * from %s where hasPodAffinity = true and clusterName = \"%s\" %s ORDER BY creationTimestamp DESC", parentSchema, clusterName, filter), rootPath, namespace, node,null));
             metricsList.add(new AppDMetricObj("HasPodAntiAffinity", parentSchema, CONFIG_SCHEMA_DEF_POD,
-                    String.format("select * from %s where hasPodAntiAffinity = true and clusterName = \"%s\" %s ORDER BY creationTimestamp DESC", parentSchema, clusterName, filter), rootPath, namespace, node));
+                    String.format("select * from %s where hasPodAntiAffinity = true and clusterName = \"%s\" %s ORDER BY creationTimestamp DESC", parentSchema, clusterName, filter), rootPath, namespace, node,null));
+
+            metricsList.add(new AppDMetricObj("NotRunningPodCount", parentSchema, CONFIG_SCHEMA_DEF_POD,
+                    String.format("select * from %s where hasPodAntiAffinity = true and clusterName = \"%s\" %s ORDER BY creationTimestamp DESC", parentSchema, clusterName, filter), rootPath, namespace, node,null));
 
         }
         return metricsList;
     }
+    
+	private String getContainerState(V1ContainerState containerState) {
+	    if (containerState.getWaiting() != null) {
+	        return "Waiting: " + containerState.getWaiting().getReason();
+	    } else if (containerState.getTerminated() != null) {
+	        return "Terminated: " + containerState.getTerminated().getReason();
+	    } else if (containerState.getRunning() != null) {
+	        return "Running";
+	    } else {
+	        return "Unknown";
+	    }
+	}
 }
 

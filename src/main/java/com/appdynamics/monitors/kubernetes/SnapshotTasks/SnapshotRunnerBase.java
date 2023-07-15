@@ -1,30 +1,35 @@
 package com.appdynamics.monitors.kubernetes.SnapshotTasks;
 
+import static com.appdynamics.monitors.kubernetes.Constants.METRIC_SEPARATOR;
+import static com.appdynamics.monitors.kubernetes.Utilities.ALL;
+
+import java.io.File;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.appdynamics.extensions.AMonitorTaskRunnable;
 import com.appdynamics.extensions.TasksExecutionServiceProvider;
 import com.appdynamics.extensions.conf.MonitorConfiguration;
 import com.appdynamics.extensions.metrics.Metric;
 import com.appdynamics.monitors.kubernetes.Constants;
+import com.appdynamics.monitors.kubernetes.Utilities;
 import com.appdynamics.monitors.kubernetes.Models.AppDMetricObj;
 import com.appdynamics.monitors.kubernetes.Models.SummaryObj;
-import com.appdynamics.monitors.kubernetes.Utilities;
 import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
-import io.kubernetes.client.ApiClient;
-import io.kubernetes.client.apis.CoreV1Api;
-import io.kubernetes.client.apis.ExtensionsV1beta1Api;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import java.io.File;
-import java.util.*;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-
-import static com.appdynamics.monitors.kubernetes.Constants.METRIC_SEPARATOR;
-import static com.appdynamics.monitors.kubernetes.Utilities.ALL;
+import io.kubernetes.client.openapi.apis.CoreV1Api;
+import okhttp3.OkHttpClient;
 
 public abstract class SnapshotRunnerBase implements AMonitorTaskRunnable {
     protected CountDownLatch countDownLatch;
@@ -120,29 +125,39 @@ public abstract class SnapshotRunnerBase implements AMonitorTaskRunnable {
             logger.error(String.format("Unable to save metrics for task {} to disk", taskName), ex);
         }
     }
-    protected void setAPIServerTimeout(ApiClient client, long seconds){
+    protected void setAPIServerTimeout(io.kubernetes.client.openapi.ApiClient client, long seconds){
         if (client != null){
-            client.getHttpClient().setConnectTimeout(seconds, TimeUnit.SECONDS);
-            client.getHttpClient().setReadTimeout(seconds, TimeUnit.SECONDS);
-            client.getHttpClient().setWriteTimeout(seconds, TimeUnit.SECONDS);
+        	
+        	OkHttpClient httpClient = client.getHttpClient().newBuilder().
+        			readTimeout(seconds, TimeUnit.SECONDS).
+        			connectTimeout(seconds, TimeUnit.SECONDS).
+        			writeTimeout(seconds, TimeUnit.SECONDS).build();
+        	
+            client.setHttpClient(httpClient);
         }
     }
 
     protected void setCoreAPIServerTimeout(CoreV1Api api, long seconds){
         if (api != null){
-            api.getApiClient().getHttpClient().setConnectTimeout(seconds, TimeUnit.SECONDS);
-            api.getApiClient().getHttpClient().setReadTimeout(seconds, TimeUnit.SECONDS);
-            api.getApiClient().getHttpClient().setWriteTimeout(seconds, TimeUnit.SECONDS);
+        	
+        	OkHttpClient httpClient = api.getApiClient().getHttpClient().newBuilder().
+        			readTimeout(seconds, TimeUnit.SECONDS).
+        			connectTimeout(seconds, TimeUnit.SECONDS).
+        			writeTimeout(seconds, TimeUnit.SECONDS).build();
+            api.getApiClient().setHttpClient(httpClient);
         }
     }
 
-    protected void setCoreAPIServerTimeout(ExtensionsV1beta1Api api, long seconds){
-        if (api != null){
-            api.getApiClient().getHttpClient().setConnectTimeout(seconds, TimeUnit.SECONDS);
-            api.getApiClient().getHttpClient().setReadTimeout(seconds, TimeUnit.SECONDS);
-            api.getApiClient().getHttpClient().setWriteTimeout(seconds, TimeUnit.SECONDS);
-        }
-    }
+//    protected void setCoreAPIServerTimeout(ExtensionsV1beta1Api api, long seconds){
+//    	if (api != null){
+//        	
+//        	OkHttpClient httpClient = api.getApiClient().getHttpClient().newBuilder().
+//        			readTimeout(seconds, TimeUnit.SECONDS).
+//        			connectTimeout(seconds, TimeUnit.SECONDS).
+//        			writeTimeout(seconds, TimeUnit.SECONDS).build();
+//            api.getApiClient().setHttpClient(httpClient);
+//        }
+//    }
 
     public List<AppDMetricObj> deserializeMetrics(){
         return deserializeMetrics(null);
@@ -181,7 +196,7 @@ public abstract class SnapshotRunnerBase implements AMonitorTaskRunnable {
             while (nodes.hasNext()){
                 Map.Entry<String, JsonNode> entry = nodes.next();
                 String fieldName = entry.getKey();
-                if (!fieldName.equals("batch_ts") && !fieldName.equals("nodename") && !fieldName.equals("namespace")) {
+                if (!fieldName.equals("batch_ts") && !fieldName.equals("nodename") && !fieldName.equals("namespace") && !fieldName.equalsIgnoreCase("msServiceName")) {
                     String path = String.format("%s%s%s", summaryObj.getPath(), METRIC_SEPARATOR, fieldName);
                     String val = entry.getValue().asText();
                     Metric m = new Metric(fieldName, val, path, "OBSERVATION", "CURRENT", "INDIVIDUAL");
@@ -191,6 +206,7 @@ public abstract class SnapshotRunnerBase implements AMonitorTaskRunnable {
         }
         return metricList;
     }
+    
 
     public  ArrayList getSummaryDataList(HashMap<String, SummaryObj> summaryMap, Map<String, String> config){
         ArrayList list = new ArrayList();

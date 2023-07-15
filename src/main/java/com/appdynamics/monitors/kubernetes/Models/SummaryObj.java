@@ -1,9 +1,9 @@
 package com.appdynamics.monitors.kubernetes.Models;
 
 
-import com.fasterxml.jackson.databind.node.ObjectNode;
-
 import java.util.ArrayList;
+
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
 public class SummaryObj {
     private ObjectNode data;

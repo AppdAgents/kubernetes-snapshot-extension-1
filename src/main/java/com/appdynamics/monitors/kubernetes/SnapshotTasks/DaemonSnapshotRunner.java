@@ -1,21 +1,15 @@
 package com.appdynamics.monitors.kubernetes.SnapshotTasks;
 
-import com.appdynamics.extensions.TasksExecutionServiceProvider;
-import com.appdynamics.extensions.metrics.Metric;
-import com.appdynamics.extensions.util.AssertUtils;
-import com.appdynamics.monitors.kubernetes.Metrics.UploadMetricsTask;
-import com.appdynamics.monitors.kubernetes.Models.AppDMetricObj;
-import com.appdynamics.monitors.kubernetes.Models.SummaryObj;
-import com.appdynamics.monitors.kubernetes.RestClient;
-import com.appdynamics.monitors.kubernetes.Utilities;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.kubernetes.client.ApiClient;
-import io.kubernetes.client.Configuration;
-import io.kubernetes.client.apis.ExtensionsV1beta1Api;
-import io.kubernetes.client.models.V1beta1DaemonSet;
-import io.kubernetes.client.models.V1beta1DaemonSetList;
+import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_RECS_BATCH_SIZE;
+import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_SCHEMA_DEF_DAEMON;
+import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_SCHEMA_NAME_DAEMON;
+import static com.appdynamics.monitors.kubernetes.Constants.K8S_VERSION;
+import static com.appdynamics.monitors.kubernetes.Constants.OPENSHIFT_VERSION;
+import static com.appdynamics.monitors.kubernetes.Utilities.ALL;
+import static com.appdynamics.monitors.kubernetes.Utilities.checkAddInt;
+import static com.appdynamics.monitors.kubernetes.Utilities.checkAddObject;
+import static com.appdynamics.monitors.kubernetes.Utilities.ensureSchema;
+import static com.appdynamics.monitors.kubernetes.Utilities.incrementField;
 
 import java.io.IOException;
 import java.net.URL;
@@ -24,8 +18,23 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 
-import static com.appdynamics.monitors.kubernetes.Constants.*;
-import static com.appdynamics.monitors.kubernetes.Utilities.*;
+import com.appdynamics.extensions.TasksExecutionServiceProvider;
+import com.appdynamics.extensions.metrics.Metric;
+import com.appdynamics.extensions.util.AssertUtils;
+import com.appdynamics.monitors.kubernetes.KubernetesClientSingleton;
+import com.appdynamics.monitors.kubernetes.Utilities;
+import com.appdynamics.monitors.kubernetes.Metrics.UploadMetricsTask;
+import com.appdynamics.monitors.kubernetes.Models.AppDMetricObj;
+import com.appdynamics.monitors.kubernetes.Models.SummaryObj;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+
+import io.kubernetes.client.openapi.ApiClient;
+import io.kubernetes.client.openapi.Configuration;
+import io.kubernetes.client.openapi.apis.AppsV1Api;
+import io.kubernetes.client.openapi.models.V1DaemonSet;
+import io.kubernetes.client.openapi.models.V1DaemonSetList;
 
 public class DaemonSnapshotRunner extends SnapshotRunnerBase{
 
@@ -53,15 +62,25 @@ public class DaemonSnapshotRunner extends SnapshotRunnerBase{
             URL publishUrl = ensureSchema(config, apiKey, accountName,CONFIG_SCHEMA_NAME_DAEMON, CONFIG_SCHEMA_DEF_DAEMON);
 
             try {
-                V1beta1DaemonSetList dsList;
+                V1DaemonSetList dsList;
                 try {
-                    ApiClient client = Utilities.initClient(config);
+                    ApiClient client = KubernetesClientSingleton.getInstance(config);
                     this.setAPIServerTimeout(client, K8S_API_TIMEOUT);
                     Configuration.setDefaultApiClient(client);
-                    ExtensionsV1beta1Api api = new ExtensionsV1beta1Api();
-                    this.setCoreAPIServerTimeout(api, K8S_API_TIMEOUT);
-
-                    dsList = api.listDaemonSetForAllNamespaces(null, null, true, null, null, null, null, null, null);
+                    AppsV1Api api = KubernetesClientSingleton.getAppsV1ApiClient(config);
+                    
+                    dsList = api.listDaemonSetForAllNamespaces(
+                    		false, //allow Watch bookmarks
+                    		null,  //_continue - relevant for pagination
+                    		null,  //fieldSelector
+                    		null,  //labelSelector
+                    		null,  //limit the number of records
+                    		null,  //pretty output
+                    		null,  //resourseVersion
+                    		null,  //resourceVersionMatch
+                    		K8S_API_TIMEOUT, //timeout in sec
+                    		false // isWatch
+                    		);
                 }
                 catch (Exception ex){
                     throw new Exception("Unable to connect to Kubernetes API server because it may be unavailable or the cluster credentials are invalid", ex);
@@ -84,12 +103,12 @@ public class DaemonSnapshotRunner extends SnapshotRunnerBase{
         }
     }
 
-    private ArrayNode createDaemonsetPayload(V1beta1DaemonSetList dsList, Map<String, String> config, URL publishUrl, String accountName, String apiKey){
+    private ArrayNode createDaemonsetPayload(V1DaemonSetList dsList, Map<String, String> config, URL publishUrl, String accountName, String apiKey){
         ObjectMapper mapper = new ObjectMapper();
         ArrayNode arrayNode = mapper.createArrayNode();
         long batchSize = Long.parseLong(config.get(CONFIG_RECS_BATCH_SIZE));
 
-        for(V1beta1DaemonSet deployItem : dsList.getItems()) {
+        for(V1DaemonSet deployItem : dsList.getItems()) {
             ObjectNode deployObject = mapper.createObjectNode();
 
             String namespace = deployItem.getMetadata().getNamespace();
@@ -108,6 +127,14 @@ public class DaemonSnapshotRunner extends SnapshotRunnerBase{
                     getSummaryMap().put(namespace, summaryNamespace);
                 }
             }
+            if(!OPENSHIFT_VERSION.isEmpty()) {
+	        	deployObject = checkAddObject(deployObject,OPENSHIFT_VERSION, "openshiftVersion");
+	        }
+	        if(!K8S_VERSION.isEmpty()) {
+	        	deployObject = checkAddObject(deployObject,K8S_VERSION, "kubernetesVersion");	        	
+	        }
+            ObjectNode labelsObject = Utilities.getResourceLabels(config,mapper, deployItem);
+            deployObject=checkAddObject(deployObject, labelsObject, "customLabels") ;  
 
             incrementField(summary, "DaemonSets");
             incrementField(summaryNamespace, "DaemonSets");
@@ -235,19 +262,19 @@ public class DaemonSnapshotRunner extends SnapshotRunnerBase{
 
         if(namespace.equals(ALL)) {
             metricsList.add(new AppDMetricObj("DaemonSets", parentSchema, CONFIG_SCHEMA_DEF_DAEMON,
-                    String.format("select * from %s where clusterName = \"%s\" %s", parentSchema, clusterName, filter), rootPath, namespace, ALL));
+                    String.format("select * from %s where clusterName = \"%s\" %s", parentSchema, clusterName, filter), rootPath, namespace, ALL,null));
 
             metricsList.add(new AppDMetricObj("DaemonReplicasAvailable", parentSchema, CONFIG_SCHEMA_DEF_DAEMON,
-                    String.format("select * from %s where replicasAvailable > 0 and clusterName = \"%s\" %s", parentSchema, clusterName, filter), rootPath, namespace, ALL));
+                    String.format("select * from %s where replicasAvailable > 0 and clusterName = \"%s\" %s", parentSchema, clusterName, filter), rootPath, namespace,  ALL,null));
 
             metricsList.add(new AppDMetricObj("DaemonReplicasUnAvailable", parentSchema, CONFIG_SCHEMA_DEF_DAEMON,
-                    String.format("select * from %s where replicasUnAvailable > 0 and clusterName = \"%s\" %s", parentSchema, clusterName, filter), rootPath, namespace, ALL));
+                    String.format("select * from %s where replicasUnAvailable > 0 and clusterName = \"%s\" %s", parentSchema, clusterName, filter), rootPath, namespace, ALL,null));
 
             metricsList.add(new AppDMetricObj("DaemonMissScheduled", parentSchema, CONFIG_SCHEMA_DEF_DAEMON,
-                    String.format("select * from %s where missScheduled > 0 and clusterName = \"%s\" %s", parentSchema, clusterName, filter), rootPath, namespace, ALL));
+                    String.format("select * from %s where missScheduled > 0 and clusterName = \"%s\" %s", parentSchema, clusterName, filter), rootPath, namespace,  ALL,null));
 
             metricsList.add(new AppDMetricObj("DaemonCollisionCount", parentSchema, CONFIG_SCHEMA_DEF_DAEMON,
-                    String.format("select * from %s where collisionCount > 0 and clusterName = \"%s\" %s", parentSchema, clusterName, filter), rootPath, namespace, ALL));
+                    String.format("select * from %s where collisionCount > 0 and clusterName = \"%s\" %s", parentSchema, clusterName, filter), rootPath, namespace, ALL,null));
         }
 
         return metricsList;

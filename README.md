@@ -49,7 +49,7 @@ These automatically created queries can also be accessed under Analytics -> Sear
 
 ## Installation
 
-Either [Download the Extension from the latest Github release](https://github.com/Appdynamics/kubernetes-snapshot-extension/releases/download/0.87/KubernetesSnapshotExtension-0.87.zip) or Build from Source.
+Either [Download the Extension from the latest Github release](https://github.com/AppdAgents/kubernetes-snapshot-extension/releases/download/0.87/KubernetesSnapshotExtension-0.87.zip) or Build from Source.
 
 1. Deploy the `KubernetesSnapshotExtension-<VERSION>.zip` file into the `<machine agent home>/monitors` directory.
 
@@ -105,7 +105,7 @@ Either [Download the Extension from the latest Github release](https://github.co
   in the [example start-up script](#restart-the-machine-agent) below.
 
   When running MA with this extension in Kubernetes, do not deploy as Daemon Set. Make it a 1 replica Deployment.
-  Set *apiMode* config variable to *cluster*. See detailed instructions [below](https://github.com/Appdynamics/kubernetes-snapshot-extension#deploying-to-a-kubernetes-cluster).
+  Set *apiMode* config variable to *cluster*. See detailed instructions [below](https://github.com/AppdAgents/kubernetes-snapshot-extension#deploying-to-a-kubernetes-cluster).
 
 
 
@@ -123,6 +123,11 @@ Either [Download the Extension from the latest Github release](https://github.co
   - type: "replica"
   - type: "event"
   - type: "endpoint"
+  - type: "podResourceQuota"
+  - type: "podStatusMonitor"
+  - type: "podCrashStatus"
+  - type: "namespaceQuotaUtilization"
+  - type: "notRunningPodsPerNode"
 
   # Proxy host. Env Var: APPD_PROXY_HOST
   proxyHost: ""
@@ -179,6 +184,8 @@ Either [Download the Extension from the latest Github release](https://github.co
   # Name of the Events  schema
    eventsSchemaName: "k8s_events"
 
+  # Custom tags/labels from metadata which need to be captured
+   customTags: "tag1,tag2" #Add comma seperated tags/lables which needs to captured these will captured from resource metadata
 
   ```
 
@@ -323,7 +330,7 @@ oc create secret generic appd-secret --from-literal=ACCOUNT_ACCESS_KEY=<controll
 
 ## Contributing
 
-Always feel free to fork and contribute any changes directly via [GitHub](https://github.com/sashaPM/kubernetes-snapshot-extension).
+Always feel free to fork and contribute any changes directly via [GitHub](https://github.com/AppdAgents/kubernetes-snapshot-extension-1).
 
 ## Troubleshooting
 
@@ -337,4 +344,4 @@ Always feel free to fork and contribute any changes directly via [GitHub](https:
 
     ## Support
 
-    Support is provided by the author. Please post your inquiries and bug reports in the [Issues](https://github.com/Appdynamics/kubernetes-snapshot-extension/issues) area.
+    Support is provided by the author. Please post your inquiries and bug reports in the [Issues](https://github.com/AppdAgents/kubernetes-snapshot-extension/issues) area.

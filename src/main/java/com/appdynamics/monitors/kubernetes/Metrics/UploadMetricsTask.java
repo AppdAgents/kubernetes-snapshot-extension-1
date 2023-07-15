@@ -1,17 +1,16 @@
 package com.appdynamics.monitors.kubernetes.Metrics;
 
+import java.util.HashMap;
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.appdynamics.extensions.MetricWriteHelper;
 import com.appdynamics.extensions.conf.MonitorConfiguration;
 import com.appdynamics.extensions.metrics.Metric;
 import com.appdynamics.monitors.kubernetes.Models.SummaryObj;
-import com.appdynamics.monitors.kubernetes.Utilities;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.util.HashMap;
-import java.util.List;
-import java.util.concurrent.CountDownLatch;
 
 public class UploadMetricsTask implements Runnable{
     private List<Metric> finalMetricList;

@@ -1,32 +1,56 @@
 package com.appdynamics.monitors.kubernetes.SnapshotTasks;
 
-import com.appdynamics.extensions.TasksExecutionServiceProvider;
-import com.appdynamics.extensions.metrics.Metric;
-import com.appdynamics.extensions.util.AssertUtils;
-import com.appdynamics.monitors.kubernetes.Metrics.UploadMetricsTask;
-import com.appdynamics.monitors.kubernetes.Models.AppDMetricObj;
-import com.appdynamics.monitors.kubernetes.Models.SummaryObj;
-import com.appdynamics.monitors.kubernetes.RestClient;
-import com.appdynamics.monitors.kubernetes.Utilities;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.kubernetes.client.ApiClient;
-import io.kubernetes.client.Configuration;
-import io.kubernetes.client.apis.CoreV1Api;
-import io.kubernetes.client.custom.Quantity;
-import io.kubernetes.client.models.*;
+import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_RECS_BATCH_SIZE;
+import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_SCHEMA_DEF_NODE;
+import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_SCHEMA_NAME_NODE;
+import static com.appdynamics.monitors.kubernetes.Constants.K8S_VERSION;
+import static com.appdynamics.monitors.kubernetes.Constants.OPENSHIFT_VERSION;
+import static com.appdynamics.monitors.kubernetes.Utilities.ALL;
+import static com.appdynamics.monitors.kubernetes.Utilities.checkAddFloat;
+import static com.appdynamics.monitors.kubernetes.Utilities.checkAddInt;
+import static com.appdynamics.monitors.kubernetes.Utilities.checkAddObject;
 
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.net.URL;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 
-import static com.appdynamics.monitors.kubernetes.Constants.*;
-import static com.appdynamics.monitors.kubernetes.Utilities.*;
+import com.appdynamics.extensions.TasksExecutionServiceProvider;
+import com.appdynamics.extensions.metrics.Metric;
+import com.appdynamics.extensions.util.AssertUtils;
+import com.appdynamics.monitors.kubernetes.Constants;
+import com.appdynamics.monitors.kubernetes.Globals;
+import com.appdynamics.monitors.kubernetes.KubernetesClientSingleton;
+import com.appdynamics.monitors.kubernetes.Utilities;
+import com.appdynamics.monitors.kubernetes.Metrics.UploadMetricsTask;
+import com.appdynamics.monitors.kubernetes.Models.AppDMetricObj;
+import com.appdynamics.monitors.kubernetes.Models.SummaryObj;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+
+import io.kubernetes.client.custom.Quantity;
+import io.kubernetes.client.openapi.ApiClient;
+import io.kubernetes.client.openapi.Configuration;
+import io.kubernetes.client.openapi.apis.CoreV1Api;
+import io.kubernetes.client.openapi.models.V1AttachedVolume;
+import io.kubernetes.client.openapi.models.V1Node;
+import io.kubernetes.client.openapi.models.V1NodeAddress;
+import io.kubernetes.client.openapi.models.V1NodeCondition;
+import io.kubernetes.client.openapi.models.V1NodeList;
+import io.kubernetes.client.openapi.models.V1Pod;
+import io.kubernetes.client.openapi.models.V1PodList;
+import io.kubernetes.client.openapi.models.V1Taint;
 
 public class NodeSnapshotRunner extends SnapshotRunnerBase {
+	
+//	private Map<String,String> Node_Role_Map = new HashMap<String, String>();
+	
     public NodeSnapshotRunner(){
 
     }
@@ -55,20 +79,20 @@ public class NodeSnapshotRunner extends SnapshotRunnerBase {
                 V1NodeList nodeList;
 
                 try {
-                    ApiClient client = Utilities.initClient(config);
-                    this.setAPIServerTimeout(client, K8S_API_TIMEOUT);
-                    Configuration.setDefaultApiClient(client);
-                    CoreV1Api api = new CoreV1Api();
-                    this.setCoreAPIServerTimeout(api, K8S_API_TIMEOUT);
+                	ApiClient client = KubernetesClientSingleton.getInstance(config);
+    				CoreV1Api api =KubernetesClientSingleton.getCoreV1ApiClient(config);
+    			    this.setAPIServerTimeout(KubernetesClientSingleton.getInstance(config), K8S_API_TIMEOUT);
+    	            Configuration.setDefaultApiClient(client);
+    	            this.setCoreAPIServerTimeout(api, K8S_API_TIMEOUT);
                     nodeList = api.listNode(null,
+                            false,
                             null,
                             null,
+                            null, 500,
                             null,
                             null,
-                            null,
-                            null,
-                            null,
-                            null);
+                            K8S_API_TIMEOUT,
+                            false);
                 }
                 catch (Exception ex){
                     throw new Exception("Unable to connect to Kubernetes API server because it may be unavailable or the cluster credentials are invalid", ex);
@@ -96,29 +120,63 @@ public class NodeSnapshotRunner extends SnapshotRunnerBase {
      ArrayNode createNodePayload(V1NodeList nodeList, Map<String, String> config, URL publishUrl, String accountName, String apiKey) {
         ObjectMapper mapper = new ObjectMapper();
         ArrayNode arrayNode = mapper.createArrayNode();
-
+       
+			
+		
         long batchSize = Long.parseLong(config.get(CONFIG_RECS_BATCH_SIZE));
         for(V1Node nodeObj : nodeList.getItems()) {
             ObjectNode nodeObject = mapper.createObjectNode();
             String nodeName = nodeObj.getMetadata().getName();
+            
             nodeObject = checkAddObject(nodeObject, nodeName, "nodeName");
             String clusterName = Utilities.ensureClusterName(config, nodeObj.getMetadata().getClusterName());
 
             SummaryObj summary = getSummaryMap().get(ALL);
             if (summary == null) {
-                summary = initNodeSummaryObject(config, ALL);
+                summary = initNodeSummaryObject(config, ALL,null);
                 getSummaryMap().put(ALL, summary);
+            }
+            
+            ObjectNode labelsObject = Utilities.getResourceLabels(config,mapper, nodeObj);
+            nodeObject=checkAddObject(nodeObject, labelsObject, "customLabels") ; 
+            
+            boolean isMaster = false;
+            int masters = 0;
+            int workers = 0;
+            if (nodeObj.getMetadata().getLabels() != null) {
+                String labels = "";
+                Iterator it = nodeObj.getMetadata().getLabels().entrySet().iterator();
+                while (it.hasNext()) {
+                    Map.Entry pair = (Map.Entry) it.next();
+                    if (!isMaster && pair.getKey().equals("node-role.kubernetes.io/master")) {
+                        isMaster = true;
+                    }
+                    labels += String.format("%s:%s;", pair.getKey(), pair.getValue());
+                    it.remove();
+                }
+                nodeObject = checkAddObject(nodeObject, labels, "labels");
             }
 
             SummaryObj summaryNode = getSummaryMap().get(nodeName);
             if(Utilities.shouldCollectMetricsForNode(getConfiguration(), nodeName)) {
                 if (summaryNode == null) {
-                    summaryNode = initNodeSummaryObject(config, nodeName);
+                    summaryNode = initNodeSummaryObject(config, nodeName, isMaster ? Constants.MASTER_NODE : Constants.WORKER_NODE);
                     getSummaryMap().put(nodeName, summaryNode);
+                    Globals.NODE_ROLE_MAP.put(nodeName, isMaster ? Constants.MASTER_NODE : Constants.WORKER_NODE);
                 }
             }
-
-
+       
+            	nodeObject = checkAddInt(nodeObject,getNotRunningPodCount(nodeName),"notRunningPodCount");
+			
+            
+            if(!OPENSHIFT_VERSION.isEmpty()) {
+            	nodeObject = checkAddObject(nodeObject,OPENSHIFT_VERSION,"openshiftVersion");
+            }
+            if(!K8S_VERSION.isEmpty()) {
+	        	nodeObject = checkAddObject(nodeObject,K8S_VERSION, "kubernetesVersion");	        	
+	        }
+            
+//            nodeObject = checkAddObject(nodeObject, isMaster ? Constants.MASTER_NODE : Constants.WORKER_NODE + Constants.METRIC_SEPARATOR + nodeName, "nodeName");
             nodeObject = checkAddObject(nodeObject, clusterName, "clusterName");
             nodeObject = checkAddObject(nodeObject, nodeObj.getSpec().getPodCIDR(), "podCIDR");
             String taints = "";
@@ -139,22 +197,7 @@ public class NodeSnapshotRunner extends SnapshotRunnerBase {
             nodeObject = checkAddObject(nodeObject, addresses, "addresses");
 
             //labels
-            boolean isMaster = false;
-            int masters = 0;
-            int workers = 0;
-            if (nodeObj.getMetadata().getLabels() != null) {
-                String labels = "";
-                Iterator it = nodeObj.getMetadata().getLabels().entrySet().iterator();
-                while (it.hasNext()) {
-                    Map.Entry pair = (Map.Entry) it.next();
-                    if (!isMaster && pair.getKey().equals("node-role.kubernetes.io/master")) {
-                        isMaster = true;
-                    }
-                    labels += String.format("%s:%s;", pair.getKey(), pair.getValue());
-                    it.remove();
-                }
-                nodeObject = checkAddObject(nodeObject, labels, "labels");
-            }
+          
             if (isMaster) {
                 nodeObject = checkAddObject(nodeObject, "master", "role");
                 masters++;
@@ -214,7 +257,7 @@ public class NodeSnapshotRunner extends SnapshotRunnerBase {
             if (nodeObj.getStatus().getVolumesAttached() != null){
                 String attachedValumes = "";
                 for (V1AttachedVolume v : nodeObj.getStatus().getVolumesAttached()) {
-                    attachedValumes += String.format("$s:$s;", v.getName(), v.getDevicePath());
+                    attachedValumes += String.format("%s:%s;", v.getName(), v.getDevicePath());
                 }
                 nodeObject = checkAddObject(nodeObject, attachedValumes, "attachedVolumes");
             }
@@ -222,7 +265,7 @@ public class NodeSnapshotRunner extends SnapshotRunnerBase {
             if (nodeObj.getStatus().getVolumesInUse() != null) {
                 String volumesInUse = "";
                 for (String v : nodeObj.getStatus().getVolumesInUse()) {
-                    volumesInUse += String.format("$s:", v);
+                    volumesInUse += String.format("%s:", v);
                 }
                 nodeObject = checkAddObject(nodeObject, volumesInUse, "volumesInUse");
             }
@@ -287,12 +330,25 @@ public class NodeSnapshotRunner extends SnapshotRunnerBase {
 
         return arrayNode;
     }
+  	public int getNotRunningPodCount(String nodeName)  {
+ 		int count = 0;
+ 		String podPhase = "Running";
+ 		V1PodList podList = Globals.K8S_POD_LIST;
+ 		for (V1Pod pod : podList.getItems()) {
+ 			if(pod.getSpec().getNodeName().equals(nodeName) &&  (!pod.getStatus().getPhase().equalsIgnoreCase(podPhase))) {
+ 				count++;     
+ 			}
+ 		}
 
-    protected SummaryObj initDefaultSummaryObject(Map<String, String> config){
-        return initNodeSummaryObject(config, ALL);
+ 		return count;   
+ 	}
+
+   
+ 	protected SummaryObj initDefaultSummaryObject(Map<String, String> config){
+        return initNodeSummaryObject(config, ALL,null);
     }
 
-    public  static SummaryObj initNodeSummaryObject(Map<String, String> config, String node){
+    public  static SummaryObj initNodeSummaryObject(Map<String, String> config, String node,String role){
         ObjectMapper mapper = new ObjectMapper();
         ObjectNode summary = mapper.createObjectNode();
         summary.put("nodename", node);
@@ -305,6 +361,7 @@ public class NodeSnapshotRunner extends SnapshotRunnerBase {
             summary.put("TaintsTotal", 0);
             summary.put("Masters", 0);
             summary.put("Workers", 0);
+            summary.put("NotRunningPodCount", 0);
         }
         else{
             summary.put("CapacityMemory", 0);
@@ -312,11 +369,12 @@ public class NodeSnapshotRunner extends SnapshotRunnerBase {
             summary.put("CapacityPods", 0);
             summary.put("AllocationsMemory", 0);
             summary.put("AllocationsCpu", 0);
+            summary.put("NotRunningPodCount", 0);
         }
 
         ArrayList<AppDMetricObj> metricsList = initMetrics(config, node);
 
-        String path = Utilities.getMetricsPath(config, ALL, node);
+        String path = Utilities.getMetricsPath(config, ALL, node,role);
 
         return new SummaryObj(summary, metricsList, path);
     }
@@ -332,33 +390,28 @@ public class NodeSnapshotRunner extends SnapshotRunnerBase {
         if (nodeName.equals(ALL)) {
             //global
             metricsList.add(new AppDMetricObj("ReadyNodes", parentSchema, CONFIG_SCHEMA_DEF_NODE,
-                    String.format("select * from %s where ready = \"True\" and clusterName = \"%s\"", parentSchema, clusterName), rootPath, ALL, nodeName));
+                    String.format("select * from %s where ready = \"True\" and clusterName = \"%s\"", parentSchema, clusterName), rootPath, ALL, nodeName,null));
             metricsList.add(new AppDMetricObj("OutOfDiskNodes", parentSchema, CONFIG_SCHEMA_DEF_NODE,
-                    String.format("select * from %s where outOfDisk = \"True\" and clusterName = \"%s\"", parentSchema, clusterName), rootPath, ALL, nodeName));
+                    String.format("select * from %s where outOfDisk = \"True\" and clusterName = \"%s\"", parentSchema, clusterName), rootPath, ALL, nodeName,null));
             metricsList.add(new AppDMetricObj("MemoryPressureNodes", parentSchema, CONFIG_SCHEMA_DEF_NODE,
-                    String.format("select * from %s where memoryPressure = \"True\" and clusterName = \"%s\"", parentSchema, clusterName), rootPath, ALL, nodeName));
+                    String.format("select * from %s where memoryPressure = \"True\" and clusterName = \"%s\"", parentSchema, clusterName), rootPath, ALL, nodeName,null));
             metricsList.add(new AppDMetricObj("DiskPressureNodes", parentSchema, CONFIG_SCHEMA_DEF_NODE,
-                    String.format("select * from %s where diskPressure = \"True\" and clusterName = \"%s\"", parentSchema, clusterName), rootPath, ALL, nodeName));
+                    String.format("select * from %s where diskPressure = \"True\" and clusterName = \"%s\"", parentSchema, clusterName), rootPath, ALL, nodeName,null));
             metricsList.add(new AppDMetricObj("TaintsTotal", parentSchema, CONFIG_SCHEMA_DEF_NODE,
-                    String.format("select * from %s where taints IS NOT NULL and clusterName = \"%s\"", parentSchema, clusterName), rootPath, ALL, nodeName));
+                    String.format("select * from %s where taints IS NOT NULL and clusterName = \"%s\"", parentSchema, clusterName), rootPath, ALL, nodeName,null));
             metricsList.add(new AppDMetricObj("CapacityMemory", parentSchema, CONFIG_SCHEMA_DEF_NODE,
-                    String.format("select * from %s where memCapacity > 0 and clusterName = \"%s\"", parentSchema, clusterName), rootPath, ALL, nodeName));
+                    String.format("select * from %s where memCapacity > 0 and clusterName = \"%s\"", parentSchema, clusterName), rootPath, ALL, nodeName,null));
             metricsList.add(new AppDMetricObj("CapacityCpu", parentSchema, CONFIG_SCHEMA_DEF_NODE,
-                    String.format("select * from %s where cpuCapacity > 0 and clusterName = \"%s\"", parentSchema, clusterName), rootPath, ALL, nodeName));
+                    String.format("select * from %s where cpuCapacity > 0 and clusterName = \"%s\"", parentSchema, clusterName), rootPath, ALL, nodeName,null));
             metricsList.add(new AppDMetricObj("AllocationsMemory", parentSchema, CONFIG_SCHEMA_DEF_NODE,
-                    String.format("select * from %s where memAllocations > 0 and clusterName = \"%s\"", parentSchema, clusterName), rootPath, ALL, nodeName));
+                    String.format("select * from %s where memAllocations > 0 and clusterName = \"%s\"", parentSchema, clusterName), rootPath, ALL, nodeName,null));
             metricsList.add(new AppDMetricObj("AllocationsCpu", parentSchema, CONFIG_SCHEMA_DEF_NODE,
-                    String.format("select * from %s where cpuAllocations > 0 and clusterName = \"%s\"", parentSchema, clusterName), rootPath, ALL, nodeName));
+                    String.format("select * from %s where cpuAllocations > 0 and clusterName = \"%s\"", parentSchema, clusterName), rootPath, ALL, nodeName,null));
+            metricsList.add(new AppDMetricObj("NotRunningPodCount", parentSchema, CONFIG_SCHEMA_DEF_NODE,
+                    String.format("select * from %s where notRunningPodCount > 0 and clusterName = \"%s\"", parentSchema, clusterName), rootPath, ALL, nodeName,null));
+            
         }
-//        else {
-//            //node level
-//            String nodePath = String.format("%s|%s|", rootPath, METRIC_PATH_NODES, nodeName);
-//            metricsList.add(new AppDMetricObj("AllocationsCpu", parentSchema, CONFIG_SCHEMA_DEF_NODE, null, nodePath, ALL, nodeName));
-//            metricsList.add(new AppDMetricObj("AllocationsMemory", parentSchema, CONFIG_SCHEMA_DEF_NODE, null, nodePath, ALL, nodeName));
-//            metricsList.add(new AppDMetricObj("CapacityCpu", parentSchema, CONFIG_SCHEMA_DEF_NODE, null, nodePath, ALL, nodeName));
-//            metricsList.add(new AppDMetricObj("CapacityMemory", parentSchema, CONFIG_SCHEMA_DEF_NODE, null, nodePath, ALL, nodeName));
-//            metricsList.add(new AppDMetricObj("CapacityPods", parentSchema, CONFIG_SCHEMA_DEF_NODE, null, nodePath, ALL, nodeName));
-//        }
+
         return metricsList;
     }
 }

@@ -7,12 +7,9 @@ import com.appdynamics.monitors.kubernetes.Utilities;
 import org.junit.Assert;
 import org.junit.Test;
 
-import javax.rmi.CORBA.Util;
 import java.io.File;
 import java.util.Map;
 
-import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_SCHEMA_DEF_POD;
-import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_SCHEMA_NAME_POD;
 import static com.appdynamics.monitors.kubernetes.Utilities.ALL;
 
 public class ADQLSearchTest {

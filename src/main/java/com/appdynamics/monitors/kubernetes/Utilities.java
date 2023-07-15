@@ -1,5 +1,38 @@
 package com.appdynamics.monitors.kubernetes;
 
+import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_APP_NAME;
+import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_APP_TIER_NAME;
+import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_CONTROLLER_URL;
+import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_CUSTOM_TAGS;
+import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_ENTITY_TYPE;
+import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_EVENTS_API_KEY;
+import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_EVENTS_URL;
+import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_GLOBAL_ACCOUNT_NAME;
+import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_NODE_NAMESPACES;
+import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_NODE_NODES;
+import static com.appdynamics.monitors.kubernetes.Constants.DEFAULT_METRIC_PREFIX_NAME;
+import static com.appdynamics.monitors.kubernetes.Constants.METRIC_PATH_MICRO_SERVICES;
+import static com.appdynamics.monitors.kubernetes.Constants.METRIC_PATH_NAMESPACES;
+import static com.appdynamics.monitors.kubernetes.Constants.METRIC_PATH_NODES;
+import static com.appdynamics.monitors.kubernetes.Constants.METRIC_SEPARATOR;
+
+import java.io.File;
+import java.io.IOException;
+import java.math.BigDecimal;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.nio.charset.Charset;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+
+import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.appdynamics.extensions.conf.MonitorConfiguration;
 import com.appdynamics.monitors.kubernetes.Models.AdqlSearchObj;
 import com.appdynamics.monitors.kubernetes.Models.SummaryObj;
@@ -7,20 +40,25 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.kubernetes.client.ApiClient;
+
+import io.fabric8.kubernetes.client.ConfigBuilder;
+import io.fabric8.kubernetes.client.DefaultKubernetesClient;
+import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.VersionInfo;
+import io.fabric8.openshift.client.DefaultOpenShiftClient;
+import io.fabric8.openshift.client.OpenShiftClient;
+import io.kubernetes.client.openapi.ApiClient;
+import io.kubernetes.client.openapi.Configuration;
+import io.kubernetes.client.openapi.apis.CoreV1Api;
+import io.kubernetes.client.openapi.models.CoreV1Event;
+import io.kubernetes.client.openapi.models.V1DaemonSet;
+import io.kubernetes.client.openapi.models.V1Deployment;
+import io.kubernetes.client.openapi.models.V1Namespace;
+import io.kubernetes.client.openapi.models.V1Node;
+import io.kubernetes.client.openapi.models.V1Pod;
+import io.kubernetes.client.openapi.models.V1PodList;
+import io.kubernetes.client.openapi.models.V1ReplicaSet;
 import io.kubernetes.client.util.Config;
-import org.apache.commons.lang3.StringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.io.File;
-import java.math.BigDecimal;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.nio.charset.Charset;
-import java.util.*;
-
-import static com.appdynamics.monitors.kubernetes.Constants.*;
 
 public class Utilities {
     private static final Logger logger = LoggerFactory.getLogger(Utilities.class);
@@ -29,7 +67,7 @@ public class Utilities {
     public static String ClusterName = "";
     public static ArrayList<AdqlSearchObj> savedSearches = new ArrayList<AdqlSearchObj>();
     public static int FIELD_LENGTH_LIMIT = 4000;
-
+    protected static int K8S_API_TIMEOUT = 240;
     public static URL getUrl(String input){
         URL url = null;
         try {
@@ -90,21 +128,53 @@ public class Utilities {
         }
         return should;
     }
+	
+
+	public static void main(String[] args) throws IOException {
+		System.out.println(getKubernetesVersion());
+	}
+	
+
+	private static String addAdditionalVersionFields(String oldSchemaDefinition) {
+		
+		try {
+		ObjectMapper objectMapper = new ObjectMapper();
+		JsonNode jsonNode = objectMapper.readTree(oldSchemaDefinition);
+		JsonNode schemaJson =jsonNode.get("schema");
+		ObjectNode schemaJsonObject = (ObjectNode) schemaJson;
+		if(Constants.OPENSHIFT_VERSION!=null && !Constants.OPENSHIFT_VERSION.isEmpty())
+        {
+			((ObjectNode) schemaJsonObject).put("openshiftVersion", "string");
+        }
+		if(Constants.K8S_VERSION!=null && !Constants.K8S_VERSION.isEmpty())
+        {	
+			((ObjectNode) schemaJsonObject).put("kubernetesVersion", "string");
+        }
+		
+			return  objectMapper.writeValueAsString(jsonNode);
+		}catch(IOException e)
+		{
+			logger.error("error while adding the openShiftVersion version field to schema, returning default schema");
+			return oldSchemaDefinition;
+		}
+	}
 
     public static URL ensureSchema(Map<String, String> config, String apiKey, String accountName, String schemaName, String schemaDefinition){
         URL publishUrl = Utilities.getUrl(getEventsAPIUrl(config) + "/events/publish/" + config.get(schemaName));
         URL schemaUrl = Utilities.getUrl(getEventsAPIUrl(config) + "/events/schema/" + config.get(schemaName));
-        String requestBody = config.get(schemaDefinition);
-//        ObjectNode existingSchema = null;
-//        try {
-//            existingSchema = (ObjectNode) new ObjectMapper().readTree(requestBody);
-//        }
-//        catch (IOException ioEX){
-//            logger.error("Unable to determine the latest Pod schema", ioEX);
-//        }
-
+        String requestBody = addAdditionalVersionFields(config.get(schemaDefinition));
+        
+        
         JsonNode serverSchema = RestClient.doRequest(schemaUrl, config,accountName, apiKey, "", "GET");
-        if(serverSchema == null){
+        logger.info("serverSchema{} ,  Schema Url {}", serverSchema, schemaUrl);
+        int statusCode=0;
+        String code="";
+        if (serverSchema.has("statusCode")) {
+      		statusCode = serverSchema.get("statusCode").asInt();
+               code = serverSchema.get("code").asText();
+        }
+       
+        if(statusCode == 404 && code.equals("Missing.EventType")){
 
             logger.debug("Schema Url {} does not exists. creating {}", schemaUrl, requestBody);
 
@@ -112,20 +182,6 @@ public class Utilities {
         }
         else {
             logger.info("Schema exists");
-//            if (existingSchema != null) {
-//                logger.info("Existing schema is not empty");
-//                ArrayNode updated = Utilities.checkSchemaForUpdates(serverSchema, existingSchema);
-//                if (updated != null) {
-//                    //update schema changes
-//                    logger.info("Schema changed, updating", schemaUrl);
-//                      logger.debug("New schema fields: {}", updated.toString());
-
-//                    RestClient.doRequest(schemaUrl, accountName, apiKey, updated.toString(), "PATCH");
-//                }
-//                else {
-//                    logger.info("Nothing to update");
-//                }
-//            }
         }
         return publishUrl;
     }
@@ -205,6 +261,34 @@ public class Utilities {
 
         return obj;
     }
+    
+    public static SummaryObj checkAddObject(SummaryObj summaryObj, String object, String fieldName){
+    	 if (summaryObj == null){
+             return null;
+         }
+    	 
+    	 ObjectNode obj = summaryObj.getData();
+         if(obj != null && obj.has(fieldName)) {
+            
+             obj.put(fieldName,  object);
+         }
+    	
+        return summaryObj;
+    }
+    
+    public static SummaryObj checkAndInt(SummaryObj summaryObj, String object, String fieldName){
+   	 if (summaryObj == null){
+            return null;
+        }
+   	 
+   	 ObjectNode obj = summaryObj.getData();
+        if(obj != null && obj.has(fieldName)) {
+           
+            obj.put(fieldName,  object);
+        }
+   	
+       return summaryObj;
+   }
 
     public static ObjectNode incrementField(SummaryObj summaryObj, String fieldName, int increment){
         if (summaryObj == null){
@@ -276,8 +360,22 @@ public class Utilities {
     }
 
     public static String getMetricsPath(Map<String, String> config, String namespace, String node){
+    	if(node==null || node.isEmpty()) {
+    		node=ALL;
+    		logger.error("node is empty setting it to "+node);
+    	}
+    	if(namespace==null || namespace.isEmpty()) {
+    		namespace=ALL;
+    		logger.error("namespace is empty setting it to "+namespace);
+    	}
         if(!node.equals(ALL)){
-            return String.format("%s%s%s%s%s", Utilities.getMetricsPath(config), METRIC_SEPARATOR, METRIC_PATH_NODES, METRIC_SEPARATOR, node);
+        	
+        	if(Globals.NODE_ROLE_MAP.containsKey(node)) {
+        		return String.format("%s%s%s%s%s%s%s", Utilities.getMetricsPath(config), METRIC_SEPARATOR, METRIC_PATH_NODES, METRIC_SEPARATOR,Globals.NODE_ROLE_MAP.get(node),METRIC_SEPARATOR, node);
+        	}else {
+        		return String.format("%s%s%s%s%s", Utilities.getMetricsPath(config), METRIC_SEPARATOR, METRIC_PATH_NODES, METRIC_SEPARATOR, node);
+        	}
+            
         }
         else if (!namespace.equals(ALL)){
             return String.format("%s%s%s%s%s", Utilities.getMetricsPath(config), METRIC_SEPARATOR, METRIC_PATH_NAMESPACES, METRIC_SEPARATOR, namespace);
@@ -285,6 +383,50 @@ public class Utilities {
 
         return getMetricsPath(config);
     }
+    
+    
+    public static String getMetricsPath(Map<String, String> config, String microService){
+
+        if (microService.isEmpty()){
+        	 return getMetricsPath(config);
+            
+        }
+        String str=String.format("%s%s%s%s%s", Utilities.getMetricsPath(config), METRIC_SEPARATOR, METRIC_PATH_MICRO_SERVICES, METRIC_SEPARATOR, microService);
+        return str;
+       
+    }
+    
+    public static String getMetricsPath(Map<String, String> config, String namespace,MicroserviceData microService){
+
+        
+        String str=String.format("%s%s%s%s%s%s%s%s%s", Utilities.getMetricsPath(config),METRIC_SEPARATOR,METRIC_PATH_NAMESPACES,METRIC_SEPARATOR,namespace, METRIC_SEPARATOR, METRIC_PATH_MICRO_SERVICES,METRIC_SEPARATOR,microService.getServiceName());
+        return str;
+       
+    }
+    
+    
+    public static String getMetricsPath(Map<String, String> config, String namespace, String node,String role){
+        if(!node.equals(ALL)){
+            return String.format("%s%s%s%s%s%s%s", Utilities.getMetricsPath(config), METRIC_SEPARATOR, METRIC_PATH_NODES, METRIC_SEPARATOR,role,METRIC_SEPARATOR, node);
+        }
+        
+       
+
+        return getMetricsPath(config);
+    }
+    
+
+	public static String getMetricsPath(Map<String, String> config, String namespace, String node,
+			MicroserviceData microserviceData, String role) {
+		if(!node.equals(ALL)){
+            return String.format("%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s", Utilities.getMetricsPath(config), METRIC_SEPARATOR, METRIC_PATH_NODES, METRIC_SEPARATOR,role,METRIC_SEPARATOR, node,
+            		METRIC_SEPARATOR,METRIC_PATH_NAMESPACES,METRIC_SEPARATOR,namespace,METRIC_SEPARATOR,METRIC_PATH_MICRO_SERVICES,METRIC_SEPARATOR,microserviceData.getServiceName());
+        }
+        else if (!namespace.equals(ALL)){
+            return String.format("%s%s%s%s%s", Utilities.getMetricsPath(config), METRIC_SEPARATOR, METRIC_PATH_NODES, METRIC_SEPARATOR, METRIC_PATH_NODES);
+        }
+		return getMetricsPath(config);
+	}
 
 
     public static String ensureClusterName(Map<String, String> config, String clusterName){
@@ -380,8 +522,8 @@ public class Utilities {
         return theObj;
     }
 
-    public static ApiClient initClient(Map<String, String> config) throws Exception{
-        ApiClient client;
+    public static io.kubernetes.client.openapi.ApiClient initClient(Map<String, String> config) throws Exception{
+        io.kubernetes.client.openapi.ApiClient client;
         String apiMode = System.getenv("K8S_API_MODE");
         if (StringUtils.isNotEmpty(apiMode) == false){
             apiMode = config.get("apiMode");
@@ -429,4 +571,109 @@ public class Utilities {
         return  url;
     }
 
+
+    public static String getOpenShiftVersion() {
+    	String version=""; 
+    	try (OpenShiftClient client = new DefaultOpenShiftClient()) {
+             // Retrieve the version information
+             version = client.getOpenShiftV4Version();           
+              logger.info("OpenShift Version is {}",version);    
+         } catch (Exception e) {
+             logger.error("Exception encountered while retrieving the OpenShift version. Please disregard this message if you are not working with OpenShift or a shiftcluster. Error message:{}", e.getMessage());
+         }
+		return version;
+    }
+
+    private static io.fabric8.kubernetes.client.Config buildConfig() {
+        return new ConfigBuilder().build();
+    }
+   
+    public static String getKubernetesVersion() {
+    	   String kubernetesVersion="";
+		 try (KubernetesClient client = new DefaultKubernetesClient(buildConfig())) {
+		     VersionInfo versionInfo = client.getVersion();
+		
+		     kubernetesVersion= versionInfo.getGitVersion();
+		    
+		 }
+		return kubernetesVersion;
+		          
+    }
+    
+    
+    public static List<String>  getCustomTags(Map<String, String> config) {
+	
+    	String customTags = config.get(CONFIG_CUSTOM_TAGS);
+    	if(customTags!=null && !customTags.isEmpty()){
+			String []customTagArray =customTags.split(",");
+			 
+			return  Arrays.asList(customTagArray);
+    	}
+    	return null;
+    }
+
+    public static ObjectNode getResourceLabels(Map<String, String> config,ObjectMapper mapper, Object resource) {
+    	List<String> customTags=getCustomTags(config);
+    	ObjectNode labelsObject = mapper.createObjectNode();
+    	if(customTags!=null && customTags.size()>0) {
+	    	
+	        Map<String, String> labels = new HashMap<>();
+	        
+	        if (resource instanceof V1Pod) {
+	            labels = ((V1Pod) resource).getMetadata().getLabels();           
+	        } else if (resource instanceof V1Namespace) {
+	        	 labels = ((V1Namespace) resource).getMetadata().getLabels();
+	        } else if (resource instanceof V1DaemonSet) {
+	        	 labels = ((V1DaemonSet) resource).getMetadata().getLabels();
+	        } else if (resource instanceof V1Deployment) {
+	        	 labels = ((V1Deployment) resource).getMetadata().getLabels();
+	        } else if (resource instanceof V1Node) {
+	        	 labels = ((V1Node) resource).getMetadata().getLabels();
+	        } else if (resource instanceof V1ReplicaSet) {
+	        	 labels = ((V1ReplicaSet) resource).getMetadata().getLabels();
+	        } else if (resource instanceof CoreV1Event) {
+	        	 labels = ((CoreV1Event) resource).getMetadata().getLabels();
+	        }
+	        
+	        if(labels!=null) {
+		        for (Map.Entry<String, String> entry : labels.entrySet()) {
+		            String key = entry.getKey();
+		            if(customTags.contains(key)) {
+			            String value = entry.getValue();
+			            labelsObject.put(key, value);
+		            }
+		        }
+        
+	        }
+	       
+	     }
+    	return labelsObject;
+    }
+    
+	public static V1PodList getPodsFromKubernetes(Map<String, String> config) throws Exception {
+		
+		V1PodList podList;
+		try {
+			ApiClient client = KubernetesClientSingleton.getInstance(config);
+			CoreV1Api api =KubernetesClientSingleton.getCoreV1ApiClient(config);
+		   
+            Configuration.setDefaultApiClient(client);
+            podList = api.listPodForAllNamespaces(null,
+	          null,
+	          null,
+	          null,
+	          null,
+	          null,
+	          null,
+	          null,
+	          null, null);
+		}
+	  catch (Exception ex){
+	      throw new Exception("Unable to connect to Kubernetes API server because it may be unavailable or the cluster credentials are invalid", ex);
+	  }
+	  
+		return podList;
+	
+	}
+    
 }

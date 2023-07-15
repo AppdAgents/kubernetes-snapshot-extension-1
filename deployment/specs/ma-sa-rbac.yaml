@@ -124,3 +124,28 @@ roleRef:
   kind: ClusterRole
   name: appd-cluster-reader
   apiGroup: rbac.authorization.k8s.io
+ 
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: clusterversions-reader
+rules:
+- apiGroups: ["config.openshift.io","metrics.k8s.io"]
+  resources: ["clusterversions","pods"]
+  verbs: ["get", "list"]
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: clusterversions-reader-binding
+subjects:
+- kind: ServiceAccount
+  name: k8s-monitor-sa
+  namespace: #<namespace where K8s-monitor-sa was created>
+roleRef:
+  kind: ClusterRole
+  name: clusterversions-reader
+  apiGroup: rbac.authorization.k8s.io

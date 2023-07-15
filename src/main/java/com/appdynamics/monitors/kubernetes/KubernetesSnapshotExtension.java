@@ -1,19 +1,20 @@
 package com.appdynamics.monitors.kubernetes;
 
-import com.appdynamics.extensions.ABaseMonitor;
-import com.appdynamics.extensions.TasksExecutionServiceProvider;
-import com.appdynamics.extensions.util.AssertUtils;
-import com.appdynamics.extensions.util.StringUtils;
-import com.appdynamics.monitors.kubernetes.Dashboard.ClusterDashboardGenerator;
-import com.appdynamics.monitors.kubernetes.Models.AppDMetricObj;
-import com.appdynamics.monitors.kubernetes.Models.SummaryObj;
-import com.appdynamics.monitors.kubernetes.SnapshotTasks.*;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_DASH_CHECK_INTERVAL;
+import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_ENTITY_TYPE_DAEMON;
+import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_ENTITY_TYPE_DEPLOYMENT;
+import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_ENTITY_TYPE_ENDPOINT;
+import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_ENTITY_TYPE_EVENT;
+import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_ENTITY_TYPE_NAMESPACE_QUOTA_UTILIZATION;
+import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_ENTITY_TYPE_NODE;
+import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_ENTITY_TYPE_NOT_RUNNING_PODS_PER_NODE;
+import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_ENTITY_TYPE_POD;
+import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_ENTITY_TYPE_POD_CRASH_STATUS;
+import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_ENTITY_TYPE_POD_RESOURCE_QUOTA;
+import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_ENTITY_TYPE_POD_STATUS_MONITOR;
+import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_ENTITY_TYPE_REPLICA;
+import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_NODE_ENTITIES;
+import static com.appdynamics.monitors.kubernetes.Constants.DEFAULT_METRIC_PREFIX;
 
 import java.util.ArrayList;
 import java.util.Date;
@@ -21,7 +22,34 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 
-import static com.appdynamics.monitors.kubernetes.Constants.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.appdynamics.extensions.ABaseMonitor;
+import com.appdynamics.extensions.TasksExecutionServiceProvider;
+import com.appdynamics.extensions.util.AssertUtils;
+import com.appdynamics.monitors.kubernetes.Dashboard.ClusterDashboardGenerator;
+import com.appdynamics.monitors.kubernetes.Models.AppDMetricObj;
+import com.appdynamics.monitors.kubernetes.Models.SummaryObj;
+import com.appdynamics.monitors.kubernetes.SnapshotTasks.DaemonSnapshotRunner;
+import com.appdynamics.monitors.kubernetes.SnapshotTasks.DeploymentSnapshotRunner;
+import com.appdynamics.monitors.kubernetes.SnapshotTasks.EndpointSnapshotRunner;
+import com.appdynamics.monitors.kubernetes.SnapshotTasks.EventSnapshotRunner;
+import com.appdynamics.monitors.kubernetes.SnapshotTasks.NamespaceQuotaUtilizationSnapshotRunner;
+import com.appdynamics.monitors.kubernetes.SnapshotTasks.NodeSnapshotRunner;
+import com.appdynamics.monitors.kubernetes.SnapshotTasks.NodeWiseNotRunningPodsSnapshotRunner;
+import com.appdynamics.monitors.kubernetes.SnapshotTasks.PodCrashStatusSnapshotRunner;
+import com.appdynamics.monitors.kubernetes.SnapshotTasks.PodResourceQuotaSnapshotRunner;
+import com.appdynamics.monitors.kubernetes.SnapshotTasks.PodSnapshotRunner;
+import com.appdynamics.monitors.kubernetes.SnapshotTasks.PodStatusMonitorSnapshotRunner;
+import com.appdynamics.monitors.kubernetes.SnapshotTasks.ReplicaSnapshotRunner;
+import com.appdynamics.monitors.kubernetes.SnapshotTasks.SnapshotRunnerBase;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+
+
 
 
 @SuppressWarnings("WeakerAccess")
@@ -36,7 +64,14 @@ public class KubernetesSnapshotExtension extends ABaseMonitor {
             CONFIG_ENTITY_TYPE_DEPLOYMENT,
             CONFIG_ENTITY_TYPE_DAEMON,
             CONFIG_ENTITY_TYPE_ENDPOINT,
-            CONFIG_ENTITY_TYPE_REPLICA};
+            CONFIG_ENTITY_TYPE_REPLICA,
+            CONFIG_ENTITY_TYPE_POD_STATUS_MONITOR,
+            CONFIG_ENTITY_TYPE_POD_RESOURCE_QUOTA,
+            CONFIG_ENTITY_TYPE_POD_CRASH_STATUS,
+            CONFIG_ENTITY_TYPE_NAMESPACE_QUOTA_UTILIZATION,
+            CONFIG_ENTITY_TYPE_NOT_RUNNING_PODS_PER_NODE
+            
+    };
 
     private CountDownLatch latch;
     public KubernetesSnapshotExtension() { logger.info(String.format("Using Kubernetes Snapshot Extension Version [%s]", getImplementationVersion())); }
@@ -57,7 +92,10 @@ public class KubernetesSnapshotExtension extends ABaseMonitor {
         try{
             long start = new Date().getTime();
             logger.info("Taking cluster snapshot");
+            Constants.OPENSHIFT_VERSION= Utilities.getOpenShiftVersion();
+            Constants.K8S_VERSION= Utilities.getKubernetesVersion();
             Map<String, String> config = (Map<String, String>)configuration.getConfigYml();
+            Globals.K8S_POD_LIST=Utilities.getPodsFromKubernetes(config);
             //populate Tier ID and cache of searched
             if (initClusterMonitoring(config)) {
                 ArrayList<SnapshotRunnerBase> tasks = new ArrayList<SnapshotRunnerBase>();
@@ -109,6 +147,7 @@ public class KubernetesSnapshotExtension extends ABaseMonitor {
             else{
                 logger.error("Initialization failed. Aborting...");
             }
+            Globals.K8S_POD_LIST=null;
         }
         catch(Exception e) {
             logger.error("Failed to execute the Kubernetes Snapshot Extension task", e);
@@ -162,6 +201,22 @@ public class KubernetesSnapshotExtension extends ABaseMonitor {
             case CONFIG_ENTITY_TYPE_EVENT:
                 task = new EventSnapshotRunner(tasksExecutionServiceProvider, config, latch);
                 break;
+            case CONFIG_ENTITY_TYPE_POD_STATUS_MONITOR:
+                task = new PodStatusMonitorSnapshotRunner(tasksExecutionServiceProvider, config, latch);
+                break;
+            case CONFIG_ENTITY_TYPE_POD_RESOURCE_QUOTA:
+                task = new PodResourceQuotaSnapshotRunner(tasksExecutionServiceProvider, config, latch);
+                break;
+            case CONFIG_ENTITY_TYPE_POD_CRASH_STATUS:
+                task = new PodCrashStatusSnapshotRunner(tasksExecutionServiceProvider, config, latch);
+                break;
+            case CONFIG_ENTITY_TYPE_NOT_RUNNING_PODS_PER_NODE:
+                task = new NodeWiseNotRunningPodsSnapshotRunner(tasksExecutionServiceProvider, config, latch);
+                break;
+            case CONFIG_ENTITY_TYPE_NAMESPACE_QUOTA_UTILIZATION:
+                task = new NamespaceQuotaUtilizationSnapshotRunner(tasksExecutionServiceProvider, config, latch);
+                break;              
+                
         }
         return task;
     }
@@ -192,7 +247,7 @@ public class KubernetesSnapshotExtension extends ABaseMonitor {
             //check if tier name is already in the metricsPath
             String path = Utilities.getMetricsPath(config);
             if (path.contains(Utilities.getClusterTierName(config))){
-                logger.info("Tier name {} is already configured in the metricPath. Validation complete");
+                logger.info("Tier name {} is already configured in the metricPath. Validation complete",Utilities.getClusterTierName(config));
                 return true;
             }
 

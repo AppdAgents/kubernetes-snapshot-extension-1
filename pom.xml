@@ -6,7 +6,7 @@
 
     <groupId>com.appdynamics.monitors</groupId>
     <artifactId>kubernetes-snapshot-extension</artifactId>
-    <version>0.89</version>
+    <version>0.99</version>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
@@ -19,8 +19,8 @@
         <dependency>
             <groupId>io.kubernetes</groupId>
             <artifactId>client-java</artifactId>
-            <version>3.0.0</version>
-            <scope>compile</scope>
+            <version>15.0.1</version>
+            <scope>compile</scope> 
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
@@ -79,6 +79,18 @@
             <!--<version>2.11.0</version>-->
             <!--<scope>test</scope>-->
         <!--</dependency>-->
+        
+	<dependency>
+	    <groupId>io.fabric8</groupId>
+	    <artifactId>openshift-client</artifactId>
+	    <version>6.7.0</version>
+	</dependency>
+	
+	<dependency>
+	    <groupId>com.fasterxml.jackson.core</groupId>
+	    <artifactId>jackson-databind</artifactId>
+	    <version>2.12.4</version>
+	</dependency>
     </dependencies>
     <build>
         <finalName>${project.artifactId}</finalName>

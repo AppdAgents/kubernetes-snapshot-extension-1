@@ -1,25 +1,21 @@
 package com.appdynamics.monitors.kubernetes.Dashboard;
 
-import com.appdynamics.extensions.AMonitorTaskRunnable;
-import com.appdynamics.extensions.conf.MonitorConfiguration;
-import com.appdynamics.monitors.kubernetes.Constants;
-import com.appdynamics.monitors.kubernetes.Models.AdqlSearchObj;
-import com.appdynamics.monitors.kubernetes.Models.AppDMetricObj;
-import com.appdynamics.monitors.kubernetes.RestClient;
-import com.appdynamics.monitors.kubernetes.Utilities;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.UUID;
 
-import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_SCHEMA_NAME_EVENT;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.appdynamics.monitors.kubernetes.RestClient;
+import com.appdynamics.monitors.kubernetes.Utilities;
+import com.appdynamics.monitors.kubernetes.Models.AdqlSearchObj;
+import com.appdynamics.monitors.kubernetes.Models.AppDMetricObj;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
 
 public class ADQLSearchGenerator{
