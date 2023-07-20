@@ -49,7 +49,7 @@ These automatically created queries can also be accessed under Analytics -> Sear
 
 ## Installation
 
-Either [Download the Extension from the latest Github release](https://github.com/AppdAgents/kubernetes-snapshot-extension/releases/download/0.87/KubernetesSnapshotExtension-0.87.zip) or Build from Source.
+Either [Download the Extension from the latest Github release](https://github.com/AppdAgents/kubernetes-snapshot-extension-1/archive/refs/tags/1.0.zip) or Build from Source.
 
 1. Deploy the `KubernetesSnapshotExtension-<VERSION>.zip` file into the `<machine agent home>/monitors` directory.
 
