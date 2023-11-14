@@ -7,16 +7,16 @@ The data is received via Kubernetes API at a configurable interval and is sent t
 and stored under a desired Application Tier. Metrics can be viewed in the Metrics Browser under Application -> Metric Browser -> Application Infrastructure Performance
 -> Tier Name -> Custom Metrics -> Cluster Stats.
 
-![Sample Dashboard](https://github.com/sashaPM/kubernetes-snapshot-extension/blob/master/metrics.png)
+![Sample Dashboard](https://github.com/AppdAgents/kubernetes-snapshot-extension-1/blob/master/metrics.png)
 The extension aggregates metrics at the cluster level with further categorization by node and namespace.
 
-If you want to monitor events only, use [Kubernetes Events Extension](https://github.com/Appdynamics/kubernetes-events-extension).
+If you want to monitor events only, use [Kubernetes Events Extension](https://github.com/AppdAgents/kubernetes-snapshot-extension-1).
 If you are interested in automated metric collection for events and other cluster resources, this extensions is self-sufficient. The event collection is enabled by default.
 
 The extension automatically creates the dashboard below. The first attempt to create the dashboard is made
 after the number of seconds defined in the *dashboardCheckInterval* setting has passed since the first run of the extension.
 
-![The Default Dashboard](https://github.com/sashaPM/kubernetes-snapshot-extension/blob/master/dashboard.png)
+![The Default Dashboard](https://github.com/AppdAgents/kubernetes-snapshot-extension-1/blob/master/dashboard.png)
 
 Other specialized dashboards with the metrics collected can be built in AppDynamics -> Dashboards & Reports.
 
