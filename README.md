@@ -296,23 +296,23 @@ artifacts
   * Obtain events API key AppDynamics --> Analytics --> Configuration API Keys --> Add
 
 The API Key needs to be able to Manage and Publish Custom Analytics Events
-![New Event Key](https://github.com/Appdynamics/kubernetes-snapshot-extension/blob/master/assets/events_key.png?raw=true)
+![New Event Key](https://github.com/AppdAgents/kubernetes-snapshot-extension-1/blob/master/assets/events_key.png?raw=true)
 
   * Create a new user for rest API access
 Administration - Users - New
 When creating the account for rest API access, you can setup a role with the following permissions and assign the user to it
 
-![New Role](https://github.com/Appdynamics/kubernetes-snapshot-extension/blob/master/assets/role.png?raw=true)
+![New Role](https://github.com/AppdAgents/kubernetes-snapshot-extension-1/blob/master/assets/role.png?raw=true)
 
-![App permissions](https://github.com/Appdynamics/kubernetes-snapshot-extension/blob/master/assets/role-app.png?raw=true)
+![App permissions](https://github.com/AppdAgents/kubernetes-snapshot-extension-1/blob/master/assets/role-app.png?raw=true)
 
-![Dashboard permissions](https://github.com/Appdynamics/kubernetes-snapshot-extension/blob/master/assets/role-dashboards.png?raw=true)
+![Dashboard permissions](https://github.com/AppdAgents/kubernetes-snapshot-extension-1/blob/master/assets/role-dashboards.png?raw=true)
 
-![Events permissions](https://github.com/Appdynamics/kubernetes-snapshot-extension/blob/master/assets/role-events.png?raw=true)
+![Events permissions](https://github.com/AppdAgents/kubernetes-snapshot-extension-1/blob/master/assets/role-events.png?raw=true)
 
-![Searches permissions](https://github.com/Appdynamics/kubernetes-snapshot-extension/blob/master/assets/role_searches.png?raw=true)
+![Searches permissions](https://github.com/AppdAgents/kubernetes-snapshot-extension-1/blob/master/assets/role_searches.png?raw=true)
 
-![Assign role](https://github.com/Appdynamics/kubernetes-snapshot-extension/blob/master/assets/role-assign.png?raw=true)
+![Assign role](https://github.com/AppdAgents/kubernetes-snapshot-extension-1/blob/master/assets/role-assign.png?raw=true)
 
   * Run the following command to create a secret
 ```
