@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.extensionConfig.appName }}
+  namespace: {{.Release.Namespace}}
+  labels:
+    app: {{ .Values.extensionConfig.appName }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Values.extensionConfig.appName }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+       app: {{ .Values.extensionConfig.appName }}
+    spec:
+      {{- with .Values.extensionConfig.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: k8s-monitor-sa
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: appd-infra-agent
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.extensionConfig.imageUrl}}"
+          imagePullPolicy: {{ .Values.extensionConfig.imagePullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.port }}
+              protocol: TCP
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          envFrom:
+            - configMapRef:
+                name: ma-config
+            - secretRef:
+                name: appd-secret
+          volumeMounts:
+            - name: ma-config-volume
+              mountPath: /opt/appdynamics/MachineAgent/conf/logging/log4j.xml
+              subPath: log4j.xml
+            - name: config-volume
+              mountPath: /opt/appdynamics/MachineAgent/monitors/KubernetesSnapshotExtension/config.yml
+              subPath: config.yml
+      volumes:
+        - name: ma-config-volume
+          configMap:
+            name: ma-log-config
+        - name: config-volume
+          configMap:
+            name: k8sext-config
+      restartPolicy: Always
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

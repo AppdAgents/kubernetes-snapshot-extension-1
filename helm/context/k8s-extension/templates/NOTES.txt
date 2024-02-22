@@ -1,0 +1,13 @@
+Check HELM release status:
+
+  $ helm status {{ .Release.Name }} -n {{ .Release.Namespace }}
+  $ helm get {{ .Release.Name }} -n {{ .Release.Namespace }}
+
+List operator, cluster agent and machine agent pods:
+
+  $ kubectl get pods -n {{ .Release.Namespace }}
+
+Release state:
+  Controller URL: {{ .Values.controllerInfo.controllerURL }}
+  App Name: {{ .Values.extensionConfig.appName }}
+  Unique Host Id: {{ .Values.extensionConfig.uniqueHostId }}

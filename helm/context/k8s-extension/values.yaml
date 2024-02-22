@@ -1,0 +1,88 @@
+# AppDynamics controller info (VALUES TO BE PROVIDED BY THE USER)
+controllerInfo:
+  #<controller dns>
+  host:
+  #<controller port> e.g. "8090"
+  port:
+  #<account name>
+  accountName:
+  #<global account name>  obtained from  Settings --> License --> Global Account Name
+  globalAccount:
+  sslEnabled:  #"true" if https, otherwise "false"
+  restApiUrl: #<protocol://controller dns>:<port>/controller/ e.g. https://myappd.com:8090/controller/
+  controllerAPIUser:
+  controllerURL:
+  # controller secret key obtained from --> Settings --> License --> Access key
+  accessKey:
+  #<event service endpoint in format protocol://host:port>
+  eventsApiURL:
+  # Events API Key obtained from AppDynamics --> Analytics --> Configuration API Keys --> Add
+  # The API Key you create needs to be able to Manage and Publish Custom Analytics Events
+  eventsApiKey:
+
+extensionConfig:
+  # APPLICATION_NAME env var
+  appName:
+  appTierName:
+  imageUrl: kusolank812/k8s_ext:10July.oc
+  imagePullPolicy: IfNotPresent
+  #server or cluster #K8S_API_MODE env var
+  apiMode: "cluster"
+  metricLimt: "4000"
+  uniqueHostId: "K8s-Monitor"
+  labels:
+    app: k8s-monitor
+  imagePullSecrets: null
+  # Path to your kubectl Client configuration
+  kubeClientConfig: "~/.kube/config"
+  #Add comma seperated tags/lables which needs to captured these will captured from resource metadata
+  customTags: hall
+  nodes:  # list of nodes to collect metrics for. If all nodes need to be monitored, set name to "all"
+    - name: "all"
+  # list of namespaces to collect metrics for. If all namespaces need to be monitored, set name to "all"
+  namespaces:
+    - name: "all"
+  dashboardNameSuffix: "SUMMARY"
+
+
+#serviceaccounts:
+extensionServiceAccount: k8s-monitor-sa
+
+k8sExtConfigMapName: k8sext-config
+maConfigMapName: ma-config-ext
+maLogConfigName: ma-log-config-ext
+
+# Default values for k8s_extension.
+replicaCount: 1
+
+podAnnotations: {}
+
+podSecurityContext: {}
+# fsGroup: 2000
+
+securityContext: {runAsRoot: true}
+  # capabilities:
+  #   drop:
+#   - ALL
+# readOnlyRootFilesystem: true
+# runAsNonRoot: true
+# runAsUser: 1000
+
+service:
+  type: ClusterIP
+  port: 9090
+  targetPort: 9090
+
+resources:
+  limits:
+    cpu: "0.6"
+    memory: "2Gi"
+  requests:
+    cpu: "0.3"
+    memory: "1G"
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}

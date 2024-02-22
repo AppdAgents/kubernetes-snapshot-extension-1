@@ -1,0 +1,17 @@
+apiVersion: v1
+data:
+  ACCOUNT_NAME: '{{ required "AppDynamics controller Account Name is required!" .Values.controllerInfo.accountName }}' #<account name>
+  APPLICATION_NAME: '{{ .Values.extensionConfig.appName | default "k8s-monitor"}}' #<name of the application where metrics will be stored>  e.g. Cluster-01
+  TIER_NAME: '{{ .Values.extensionConfig.appTierName | default "ClusterAgent"}}' # WARNING: if you change this value, update it in the metricPrefix setting above and the TIER_NAME in ma-config.yaml  # if you change this value, it must be also updated in k8sext-config.yaml
+  GLOBAL_ACCOUNT_NAME: '{{ required "AppDynamics controller globalAccount is required!" .Values.controllerInfo.globalAccount }}' #<global account name>
+  CONTROLLER_HOST: '{{ required "AppDynamics controller Host is required!" .Values.controllerInfo.host }}' #<controller dns>
+  CONTROLLER_PORT: '{{ required "AppDynamics controller port is required!" .Values.controllerInfo.port }}' #<controller port> e.g. "8090"
+  CONTROLLER_SSL_ENABLED: '{{ .Values.controllerInfo.sslEnabled | default false}}' #"true" if https, otherwise "false"
+  EVENTS_API_URL: '{{ required "Events api url is required!" .Values.controllerInfo.eventsApiURL }}'#<event service endpoint in format protocol://host:port>
+  REST_API_URL: '{{ required "Rest API is required!" .Values.controllerInfo.restApiUrl }}' #<protocol://controller dns>:<port>/controller/ e.g. https://myappd.com:8090/controller/
+  METRIC_LIMIT: '{{ .Values.extensionConfig.metricLimt | default "4000"}}'
+  UNIQUE_HOSTID: '{{ .Values.extensionConfig.uniqueHostId | default "K8s-Monitor"}}'
+kind: ConfigMap
+metadata:
+  name: {{ .Values.maConfigMapName }}
+  namespace: {{.Release.Namespace}}
