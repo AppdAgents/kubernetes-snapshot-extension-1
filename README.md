@@ -57,7 +57,6 @@ Either [Download the Extension from the latest Github release](https://github.co
 
 2. Set up `config.yml`.
 
-## [Installation with Helm Chart Deployment](#Helm charts) 
 
 **Required settings**
 
@@ -327,10 +326,6 @@ oc create secret generic appd-secret --from-literal=ACCOUNT_ACCESS_KEY=<controll
 ```
   kubectl create -f specs/
 ```
-
-# Helm Charts
-## Use Helm Charts for the deployments avaiable on [Extension Helm Charts](https://appdagents.github.io/k8s-extension-charts/)
-
 
 
 ## Contributing
