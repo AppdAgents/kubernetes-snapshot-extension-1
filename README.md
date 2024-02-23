@@ -48,7 +48,8 @@ These automatically created queries can also be accessed under Analytics -> Sear
  If you request metric collection for some or all nodes or namespaces, make sure to adjust the maxMetric parameter accordingly.
 
 # Helm Charts
-## Use Helm Charts for the deployments avaiable on [Extension Helm Charts](https://appdagents.github.io/k8s-extension-charts/)
+## Use Helm Charts for the installation avaiable on [Extension Helm Charts](https://appdagents.github.io/k8s-extension-charts/) 
+
 
 
 ## Installation
