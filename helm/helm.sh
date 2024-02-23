@@ -22,7 +22,7 @@ function createContextDirectory() {
 
     printf "\nDirectories created ...\n"
 }
-# copy the resources that we want to upload. Copying helm folder from codebase into cluster-agent and ca-charts sub-directories
+# copy the resources that we want to upload. Copying helm folder from codebase into k8s-extension and k8s-extension-charts sub-directories
 function copyResourcesIntoSubDirectories() {
     cp -a $EXTENSION_ROOT_DIR/k8s-extension/. $CONTEXT_DIR/k8s-extension
     printf "\nCopied resources into k8s-extension folder ...\n"
@@ -31,19 +31,19 @@ function copyResourcesIntoSubDirectories() {
 }
 
 
-# update the helm dependencies of the cluster-agent helm chart
+# update the helm dependencies of the k8s-extension helm chart
 function helmUpdateDependency() {
   cd $CONTEXT_DIR
   helm dependency update k8s-extension
 }
 
-# build the helm dependencies of the cluster-agent helm chart
+# build the helm dependencies of the k8s-extension helm chart
 function helmBuildDependency() {
   cd $CONTEXT_DIR
   helm dependency build k8s-extension
 }
 
-# create the k8sextension helm chart package
+# create the k8s-extension helm chart package
 function createK8sExtensionPackage() {
     helm package k8s-extension --destination $CONTEXT_DIR/packaged-k8s-charts
 }
@@ -53,10 +53,10 @@ function removeContextDirectory() {
     rm -rf $CONTEXT_DIR
 }
 
-# clone the appdynamics-charts repo
+# clone the k8s-extension-charts repo
 function cloneAppdHelmChartsRepo() {
     git clone "https://$GITHUB_USERNAME:$GITHUB_PASSWORD@github.com/$GITHUB_ORGANIZATION/k8s-extension-charts.git"
-    printf '\nCloned the appdynamics-charts repo into context directory .... \n'
+    printf '\nCloned the k8s-extension-charts repo into context directory .... \n'
 }
 
 # generate the index file
@@ -64,7 +64,7 @@ function generateIndexFile() {
     helm repo index --url $GITHUB_REPO_URL --merge k8s-extension-charts/index.yaml  k8s-extension-charts/
 }
 
-# upload the updated files in the appdynamics-charts/cluster-agent folder and upload the packaged cluster agent
+# upload the updated files in the k8s-extension-charts/k8s-extension folder and upload the packaged k8s-extension
 # helm chart and index.yaml file
 function uploadUpdatedFiles() {
     cp packaged-k8s-charts/* $EXTENSION_ROOT_DIR/packaged-helmcharts
@@ -80,10 +80,10 @@ function setGitConfig() {
     git config user.email "appd.agents@appdynamics.com"
     git config user.name "AppdAgents"
 }
-# upload the updated files in the appdynamics-charts/cluster-agent folder and upload the packaged cluster agent
+# upload the updated files in the k8s-extension-charts/k8s-extension-agent folder and upload the packaged k8s-extension
 # helm chart and index.yaml file
 
-# push the changes to appdynamics-charts repo
+# push the changes to k8s-extension-charts repo
 function pushToAppdHelmChartsRepo() {
     git add "k8s-extension-$HELM_CHARTS_VERSION.tgz"
     git commit -m "Released helm chart $HELM_CHARTS_VERSION for extension"
@@ -91,10 +91,10 @@ function pushToAppdHelmChartsRepo() {
     git commit -m "Updated the file on $HELM_CHARTS_VERSION Release"
     git add .
     git commit -m "latest extension charts"
-    # This should be uncommented during every agent release
+    # This should be uncommented to publish charges
 #    if git  push origin master --force
 #    then
-#     printf '\nSuccessfully uploaded the files on appdynamics-charts github repo \n'
+#     printf '\nSuccessfully uploaded the files on k8s-extension-charts github repo \n'
 #    else
 #     printf "\ngit push failed\n"
 #    fi
