@@ -47,6 +47,10 @@ These automatically created queries can also be accessed under Analytics -> Sear
  to the `node` and `namespace` arrays of the config.yml respectively. See specific instruction below in the *Optional settings* section.
  If you request metric collection for some or all nodes or namespaces, make sure to adjust the maxMetric parameter accordingly.
 
+# Helm Charts
+## Use Helm Charts for the deployments avaiable on [Extension Helm Charts](https://appdagents.github.io/k8s-extension-charts/)
+
+
 ## Installation
 
 Either [Download the Extension from the latest Github release](https://github.com/AppdAgents/kubernetes-snapshot-extension-1/archive/refs/tags/1.0.zip) or Build from Source.
