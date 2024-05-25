@@ -11,6 +11,7 @@ data:
   REST_API_URL: #<protocol://controller dns>:<port>/controller/ e.g. https://myappd.com:8090/controller/
   METRIC_LIMIT: "4000"
   UNIQUE_HOSTID: "K8s-Monitor"
+  TRUSTSTORE_PATH: #"/opt/appdynamics/MachineAgent/conf/truststore.jks" # Example path
 kind: ConfigMap
 metadata:
   name: ma-config

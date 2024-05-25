@@ -1,0 +1,10 @@
+#apiVersion: v1
+#kind: Secret
+#metadata:
+#  name: appd-truststore-secret
+#type: Opaque
+#stringData:
+#  TRUSTSTORE_PASSWORD: "your-truststore-password"
+#  # Assuming the truststore file is encoded in base64
+#  TRUSTSTORE_JKS: |
+#    #base64-encoded-jks-file-content

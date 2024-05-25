@@ -45,5 +45,14 @@ if [ "x${METRIC_LIMIT}" != "x" ]; then
     MA_PROPERTIES+=" -Dappdynamics.agent.maxMetrics=${METRIC_LIMIT}"
 fi
 
+# Add truststore properties from environment variables
+if [ "x${TRUSTSTORE_PATH}" != "x" ]; then
+    MA_PROPERTIES+=" -Djavax.net.ssl.trustStore=${TRUSTSTORE_PATH}"
+fi
+
+if [ "x${TRUSTSTORE_PASSWORD}" != "x" ]; then
+    MA_PROPERTIES+=" -Djavax.net.ssl.trustStorePassword=${TRUSTSTORE_PASSWORD}"
+fi
+
 # Start Machine Agent
 java ${MA_PROPERTIES} -jar ${MACHINE_AGENT_HOME}/machineagent.jar

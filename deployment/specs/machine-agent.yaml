@@ -38,6 +38,9 @@ spec:
         - name: config-volume
           mountPath: /opt/appdynamics/MachineAgent/monitors/KubernetesSnapshotExtension/config.yml
           subPath: config.yml
+#        - name: truststore-volume
+#          mountPath: /opt/appdynamics/MachineAgent/conf/truststore.jks
+#          subPath: truststore.jks
       restartPolicy: Always
       volumes:
       - name: ma-config-volume
@@ -46,6 +49,12 @@ spec:
       - name: config-volume
         configMap:
           name: k8sext-config
+      - name: truststore-volume
+        secret:
+          secretName: appd-truststore-secret
+          items:
+          - key: TRUSTSTORE_JKS
+            path: truststore.jks
 ---
 apiVersion: v1
 kind: Service
