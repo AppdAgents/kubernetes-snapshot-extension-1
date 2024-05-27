@@ -1,5 +1,4 @@
-
-FROM openjdk:8-jdk-alpine
+FROM eclipse-temurin:11-jre
 
 RUN apk add --no-cache bash gawk sed grep bc coreutils udev
 
