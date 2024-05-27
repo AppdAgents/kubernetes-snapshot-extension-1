@@ -1,4 +1,4 @@
-FROM eclipse-temurin:11-jre
+FROM eclipse-temurin:11-jre-alpine
 
 RUN apk add --no-cache bash gawk sed grep bc coreutils udev
 
