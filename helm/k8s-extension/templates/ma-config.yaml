@@ -11,6 +11,13 @@ data:
   REST_API_URL: '{{ required "Rest API is required!" .Values.controllerInfo.restApiUrl }}' #<protocol://controller dns>:<port>/controller/ e.g. https://myappd.com:8090/controller/
   METRIC_LIMIT: '{{ .Values.extensionConfig.metricLimt | default "4000"}}'
   UNIQUE_HOSTID: '{{ .Values.extensionConfig.uniqueHostId | default "K8s-Monitor"}}'
+  {{ with .Values.customCert -}}
+  {{ if .enabled -}}
+  {{ if .trustStorePath -}}
+  TRUSTSTORE_PATH: {{ .trustStorePath }} #"/opt/appdynamics/MachineAgent/conf/truststore.jks" # Example path
+  {{- end }}
+  {{ end -}}
+  {{ end -}}
 kind: ConfigMap
 metadata:
   name: {{ .Values.maConfigMapName }}
