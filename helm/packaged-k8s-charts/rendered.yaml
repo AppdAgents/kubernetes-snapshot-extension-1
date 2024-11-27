@@ -1,0 +1,734 @@
+---
+# Source: k8s-extension/templates/ma-sa.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: k8s-monitor-sa
+  namespace: default
+---
+# Source: k8s-extension/templates/secret-k8s-extension.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: appd-secret
+  namespace: default
+  annotations:
+    appdynamics.helm.charts/created-by: k8s-extension-helm-chart
+type: Opaque
+data:
+  ACCOUNT_ACCESS_KEY: U0o1YjJtN2QxJDM1NA==
+  EVENT_ACCESS_KEY: ZDYxNzcyZmEtZjMzYS00ZTMzLWIxMWQtMzFkMmEyYWYyNmU1
+  REST_API_CREDENTIALS: azhzX21vbml0b3JAY3VzdG9tZXIxOndlbGNvbWU=
+---
+# Source: k8s-extension/templates/k8ext-config.yaml
+apiVersion: v1
+data:
+  config.yml: |+
+    # Number of Threads for the Extension
+    numberOfThreads: 38 # 12 tasks x 3 sub tasks + 2 extra
+
+    metricPrefix: "Server|Component:ocbc-extension-tier|Custom Metrics|Cluster Stats|"
+
+    appName: 'ocbc-extension' # APPLICATION_NAME env var
+    appTierName: 'ocbc-extension-tier'  # WARNING: if you change this value, update it in the metricPrefix setting above and the TIER_NAME in ma-config.yaml
+
+    # Path to your kubectl Client configuration
+    kubeClientConfig: ~/.kube/config
+
+    #server or cluster
+    apiMode: 'cluster'  #K8S_API_MODE env var
+
+    # Events API Key obtained from AppDynamics --> Analytics --> Configuration API Keys --> Add
+    # The API Key you create needs to be able to Manage and Publish Custom Analytics Events
+    eventsApiKey: 'd61772fa-f33a-4e33-b11d-31d2a2af26e5'  # EVENT_ACCESS_KEY env var
+
+    # Global Account Name obtained from
+    # AppDynamics --> Settings --> License --> Accounts --> Global Account Name
+    accountName: 'customer1_493d8590-56fb-462a-96e3-4b6e82e1b7a5'  # GLOBAL_ACCOUNT_NAME env var
+
+    podsSchemaName: "k8s_pod_snapshots"
+
+    nodeSchemaName: "k8s_node_snapshots"
+
+    eventsSchemaName: "k8s_events"
+
+    deploySchemaName: "k8s_deploy_snapshots"
+
+    daemonSchemaName: "k8s_daemon_snapshots"
+
+    rsSchemaName: "k8s_rs_snapshots"
+
+    endpointSchemaName: "k8s_endpoint_snapshots"
+    
+    podResourceQuotaSchemaName: "k8s_pod_resource_quota_snapshots"
+    
+    namespaceQuotaUtilizationSchemaName: "k8s_namespace_resource_quota_utilization_snapshots"
+    
+    podStatusMonitorSchemaName: "k8s_pod_status_monitor_snapshots"
+    
+    notRunningPodCountPerNodeSchemaName: "k8s_not_running_pod_count_per_node_snapshots"
+    
+    podsCrashStatusSchemaName: "k8s_pod_crash_status_snapshots"
+
+    batchSize: "100"
+
+    proxyHost: ""
+    proxyPort: ""
+    proxyUser: ""
+    proxyPass: ""
+
+    customTags: hall  #Add comma seperated tags/lables which needs to captured these will captured from resource metadata
+
+    entities:
+    - type: "pod"
+    - type: "node"
+    - type: "deployment"
+    - type: "daemon"
+    - type: "replica"
+    - type: "event"
+    - type: "endpoint"
+    - type: "podResourceQuota"
+    - type: "podStatusMonitor" 
+    - type: "podCrashStatus"
+    - type: "namespaceQuotaUtilization"
+    - type: "notRunningPodsPerNode"
+
+    # list of nodes to collect metrics for. If all nodes need to be monitored, set name to "all"
+    nodes:
+    - name: "all"
+    #- name:
+
+    # list of namespaces to collect metrics for. If all namespaces need to be monitored, set name to "all"
+    namespaces:
+    - name: "all"
+    #- name:
+
+    # Absolute path to the dashboard template.
+    dashboardTemplatePath: "/opt/appdynamics/MachineAgent/monitors/KubernetesSnapshotExtension/templates/k8s_dashboard_template.json"
+
+    # Absolute path to the node widget template.
+    nodeTemplatePath: "templates/k8s_node_template.json"
+
+    #Suffix appended to the generated dashboard name
+    dashboardNameSuffix:  SUMMARY
+
+    # REST API user credentials. The use should have rights to create dashboards and analytics searches.
+    # Format: <username>@<accountname>:<password>
+    controllerAPIUser:  'k8s_monitor@customer1:welcome'    # REST_API_CREDENTIALS env var
+
+    # Controller url, including the protocol
+    controllerUrl: 'http://host.minikube.internal:8080/controller/' # REST_API_URL env var
+
+    #Time in seconds between the checks if the default dashboard exists
+    dashboardCheckInterval: "600"
+
+    # Events Service Endpoint. These Default settings are for SaaS Users. Change if you are on Premise
+    eventsUrl: https://syd-ana-api.saas.appdynamics.com  # EVENTS_API_URL env var
+
+
+    podsSchemaDefinition: '{
+       "schema" : {
+          "object_uid": "string",
+          "customLabels": "string",
+          "clusterName": "string",
+          "deploymentName": "string",
+          "creationTimestamp": "date",
+          "deletionTimestamp": "date",
+          "labels": "string",
+          "podName": "string",
+          "annotations": "string",
+          "name": "string",
+          "namespace": "string",
+          "containerCount": "integer",
+          "initContainerCount": "integer",
+          "nodeName": "string",
+          "priority": "integer",
+          "restartPolicy": "string",
+          "serviceAccountName": "string",
+          "terminationGracePeriodSeconds": "integer",
+          "tolerations": "string",
+          "nodeAffinityPreferred": "string",
+          "nodeAffinityRequired": "string",
+          "hasPodAffinity": "boolean",
+          "hasPodAntiAffinity": "boolean",
+          "hostIP": "string",
+          "phase": "string",
+          "podIP": "string",
+          "reason": "string",
+          "startTime": "date",
+          "lastTransitionTimeCondition": "date",
+          "reasonCondition": "string",
+          "statusCondition": "string",
+          "typeCondition": "string",
+          "limitsDefined": "boolean",
+          "liveProbes": "integer",
+          "readyProbes": "integer",
+          "podRestarts": "integer",
+          "numPrivileged": "integer",
+          "ports": "string",
+          "memRequest": "float",
+          "cpuRequest": "float",
+          "cpuLimit": "float",
+          "memLimit": "float",
+          "containerStates": "string",
+          "images": "string",
+          "waitReasons": "string",
+          "termReasons": "string",
+          "runningStartTime": "date",
+          "terminationTime": "date",
+          "mounts": "string"
+       }
+    }'
+
+    nodeSchemaDefinition: '{
+      "schema" : {
+          "nodeName": "string",
+          "customLabels": "string",
+          "clusterName": "string",
+          "podCIDR": "string",
+          "taints": "string",
+          "phase": "string",
+          "addresses": "string",
+          "labels": "string",
+          "role": "string",
+          "cpuCapacity": "float",
+          "memCapacity": "float",
+          "podCapacity": "integer",
+          "cpuAllocations": "float",
+          "memAllocations": "float",
+          "podAllocations": "integer",
+          "kubeletPort": "integer",
+          "osArch": "string",
+          "kubeletVersion": "string",
+          "runtimeVersion": "string",
+          "machineID": "string",
+          "osName": "string",
+          "attachedVolumes": "string",
+          "volumesInUse": "string",
+          "ready": "string",
+          "outOfDisk": "string",
+          "memoryPressure": "string",
+          "diskPressure": "string",
+          "notRunningPodCount":"integer"
+      }
+    }'
+
+    eventsSchemaDefinition: '{
+       "schema" : {
+          "firstTimestamp": "date",
+          "customLabels": "string",
+          "object_kind": "string",
+          "object_name": "string",
+          "object_namespace": "string",
+          "object_resourceVersion": "string",
+          "object_uid": "string",
+          "lastTimestamp": "date",
+          "message": "string",
+          "annotations": "string",
+          "clusterName": "string",
+          "creationTimestamp": "date",
+          "deletionTimestamp": "date",
+          "finalizers": "string",
+          "generateName": "string",
+          "generation": "string",
+          "initializers": "string",
+          "labels": "string",
+          "name": "string",
+          "namespace": "string",
+          "ownerReferences": "string",
+          "resourceVersion": "string",
+          "selfLink": "string",
+          "type": "string",
+          "count": "string",
+          "source_component": "string",
+          "source_host": "string",
+          "reason": "string"
+       }
+    }'
+
+
+    deploySchemaDefinition: '{
+      "schema": {
+        "clusterName": "string",
+        "name": "string",
+        "customLabels": "string",
+        "namespace": "string",
+        "object_uid": "string",
+        "creationTimestamp": "date",
+        "deletionTimestamp": "date",
+        "labels": "string",
+        "annotations": "string",
+        "minReadySecs": "integer",
+        "progressDeadlineSecs": "integer",
+        "replicas": "integer",
+        "revisionHistoryLimits": "integer",
+        "strategy": "string",
+        "maxSurge": "string",
+        "maxUnavailable": "string",
+        "replicasAvailable": "integer",
+        "replicasUnAvailable": "integer",
+        "replicasUpdated": "integer",
+        "collisionCount": "integer",
+        "replicasReady": "integer"
+      }
+    }'
+
+    daemonSchemaDefinition: '{
+      "schema": {
+        "clusterName": "string",
+        "name": "string",
+        "customLabels": "string",
+        "namespace": "string",
+        "object_uid": "string",
+        "creationTimestamp": "date",
+        "deletionTimestamp": "date",
+        "minReadySecs": "integer",
+        "revisionHistoryLimits": "integer",
+        "replicasAvailable": "integer",
+        "replicasUnAvailable": "integer",
+        "collisionCount": "integer",
+        "replicasReady": "integer",
+        "numberScheduled": "integer",
+        "desiredNumber": "integer",
+        "missScheduled": "integer",
+        "updatedNumberScheduled": "integer"
+      }
+    }'
+
+
+    rsSchemaDefinition: '{
+      "schema": {
+        "clusterName": "string",
+        "name": "string",
+        "namespace": "string",
+        "customLabels": "string",
+        "object_uid": "string",
+        "creationTimestamp": "date",
+        "deletionTimestamp": "date",
+        "minReadySecs": "integer",
+        "replicas": "integer",
+        "rsReplicasAvailable": "integer",
+        "rsReplicasUnAvailable": "integer",
+        "replicasLabeled": "integer",
+        "replicasReady": "integer"
+      }
+    }'
+
+    endpointSchemaDefinition: '{
+      "schema": {
+        "name": "string",
+        "clusterName": "string",
+        "namespace": "string",
+        "object_uid": "string",
+        "creationTimestamp": "date",
+        "deletionTimestamp": "date",
+        "ip_up": "integer",
+        "ip_down": "integer",
+        "downContext": "string"
+      }
+    }'
+    
+    podResourceQuotaSchemaDefinition: '{
+      "schema": {
+        "clusterName": "string",
+        "nodeName": "string",
+        "customLabels": "string",
+        "msServiceName": "string",
+        "podCount": "integer",
+        "cpuRequest": "float",
+    	"cpuLimit": "float",
+    	"memoryRequests": "float",
+    	"memoryLimits": "float"
+      }
+    }'
+    
+    namespaceQuotaUtilizationSchemaDefinition: '{
+       "schema": {
+         "namespace": "string",
+         "clusterName": "string",
+         "customLabels": "string",
+         "cpuRequestUsed": "float",
+         "cpuRequestTotal": "float",
+         "cpuLimitsUsed": "float",
+         "cpuLimitsTotal": "float",
+         "memoryRequestUsed": "float",
+         "memoryRequestTotal": "float",
+         "memoryLimitsUsed": "float",
+         "memoryLimitsTotal": "float"
+      }
+    }'
+    
+    podStatusMonitorSchemaDefinition: '{
+       "schema": {
+         "clusterName": "string",
+         "customLabels": "string",
+         "nodeName": "string",
+         "namespace": "string",
+         "containerName": "string",
+         "deploymentName": "string",
+         "podName": "string",
+         "errorReason": "string",
+         "containerPhase": "string",
+         "restartCount": "integer"
+      }
+    }'
+    
+    notRunningPodCountPerNodeSchemaDefinition: '{
+       "schema": {
+          "clusterName": "string",
+          "customLabels": "string",
+          "nodeName": "string",
+          "containerStatus": "string",
+          "notRunningPodCount": "integer",
+          "labels": "string"
+        }
+     }'
+     
+    podsCrashStatusSchemaDefinition: '{
+      "schema": {
+         "clusterName": "string",
+         "customLabels": "string",
+         "nodeName": "string",
+         "namespace": "string",
+         "deploymentName": "string",
+         "containers": "string",
+         "podName": "string",
+         "errorReason": "string",
+         "containerPhase": "string",
+         "crashCount": "integer",
+         "restartCount": "integer"
+        }
+      }'
+kind: ConfigMap
+metadata:
+  name: k8sext-config
+  namespace: default
+---
+# Source: k8s-extension/templates/ma-log-config.yaml
+apiVersion: v1
+data:
+  log4j.xml: |
+    <?xml version="1.0" encoding="UTF-8" ?>
+       <configuration status="Warn" monitorInterval="30">
+
+       <Appenders>
+          <Console name="ConsoleAppender" target="SYSTEM_OUT">
+             <PatternLayout pattern="%d{ABSOLUTE} %5p [%t] %c{1} - %m%n"/>
+          </Console>
+
+         <RollingFile name="FileAppender" fileName="${sys:appdynamics.agent.logs.dir}/machine-agent.log"
+                     filePattern="${sys:appdynamics.agent.logs.dir}/machine-agent.log.%i">
+            <PatternLayout>
+                <Pattern>${hostName}==> [%t] %d{DATE} %5p %c{1} - %m%n</Pattern>
+            </PatternLayout>
+            <Policies>
+                <SizeBasedTriggeringPolicy size="5000 KB"/>
+            </Policies>
+            <DefaultRolloverStrategy max="5"/>
+          </RollingFile>
+      </Appenders>
+
+    <Loggers>
+        <Logger name="com.singularity" level="error" additivity="false">
+            <AppenderRef ref="FileAppender"/>
+        </Logger>
+        <Logger name="com.appdynamics" level="error" additivity="false">
+            <AppenderRef ref="FileAppender"/>
+        </Logger>
+         <Logger name="com.appdynamics.monitors.kubernetes" level="error" additivity="false">
+            <AppenderRef ref="FileAppender"/>
+        </Logger>
+        <Logger name="com.singularity.ee.agent.systemagent.task.sigar.SigarAppAgentMonitor" level="error" additivity="false">
+            <AppenderRef ref="FileAppender"/>
+        </Logger>
+        <Root level="error">
+            <AppenderRef ref="FileAppender"/>
+        </Root>
+    </Loggers>
+    </configuration>
+
+kind: ConfigMap
+metadata:
+  name: ma-log-config-ext
+  namespace: default
+---
+# Source: k8s-extension/templates/ma-sa-rbac.yaml
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: appd-cluster-reader
+rules:
+- nonResourceURLs:
+      - '*'
+  verbs:
+      - get
+- apiGroups: ["batch"]
+  resources:
+    - "jobs"
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["extensions"]
+  resources:
+    - daemonsets
+    - daemonsets/status
+    - deployments
+    - deployments/scale
+    - deployments/status
+    - horizontalpodautoscalers
+    - horizontalpodautoscalers/status
+    - ingresses
+    - ingresses/status
+    - jobs
+    - jobs/status
+    - networkpolicies
+    - podsecuritypolicies
+    - replicasets
+    - replicasets/scale
+    - replicasets/status
+    - replicationcontrollers
+    - replicationcontrollers/scale
+    - storageclasses
+    - thirdpartyresources
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources:
+    - bindings
+    - componentstatuses
+    - configmaps
+    - endpoints
+    - events
+    - limitranges
+    - namespaces
+    - namespaces/status
+    - nodes
+    - nodes/status
+    - persistentvolumeclaims
+    - persistentvolumeclaims/status
+    - persistentvolumes
+    - persistentvolumes/status
+    - pods
+    - pods/binding
+    - pods/eviction
+    - pods/log
+    - pods/status
+    - podtemplates
+    - replicationcontrollers
+    - replicationcontrollers/scale
+    - replicationcontrollers/status
+    - resourcequotas
+    - resourcequotas/status
+    - securitycontextconstraints
+    - serviceaccounts
+    - services
+    - services/status
+  verbs: ["get", "list", "watch"]
+- apiGroups:
+  - apps
+  resources:
+    - controllerrevisions
+    - daemonsets
+    - daemonsets/status
+    - deployments
+    - deployments/scale
+    - deployments/status
+    - replicasets
+    - replicasets/scale
+    - replicasets/status
+    - statefulsets
+    - statefulsets/scale
+    - statefulsets/status
+  verbs:
+    - get
+    - list
+    - watch
+- apiGroups:
+  - apiextensions.k8s.io
+  resources:
+    - customresourcedefinitions
+    - customresourcedefinitions/status
+  verbs:
+    - get
+    - list
+    - watch
+- apiGroups:
+  - apiregistration.k8s.io
+  resources:
+    - apiservices
+    - apiservices/status
+  verbs:
+    - get
+    - list
+    - watch
+- apiGroups:
+  - events.k8s.io
+  resources:
+    - events
+  verbs:
+    - get
+    - list
+    - watch
+---
+# Source: k8s-extension/templates/ma-sa-rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: clusterversions-reader
+rules:
+- apiGroups: ["config.openshift.io","metrics.k8s.io"]
+  resources: ["clusterversions","pods"]
+  verbs: ["get", "list"]
+---
+# Source: k8s-extension/templates/ma-sa-rbac.yaml
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: cluster-reader-role-binding
+subjects:
+- kind: ServiceAccount
+  name: k8s-monitor-sa
+  namespace: default #<namespace where K8s-monitor-sa was created>
+roleRef:
+  kind: ClusterRole
+  name: appd-cluster-reader
+  apiGroup: rbac.authorization.k8s.io
+---
+# Source: k8s-extension/templates/ma-sa-rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: clusterversions-reader-binding
+subjects:
+- kind: ServiceAccount
+  name: k8s-monitor-sa
+  namespace: default #<namespace where K8s-monitor-sa was created>
+roleRef:
+  kind: ClusterRole
+  name: clusterversions-reader
+  apiGroup: rbac.authorization.k8s.io
+---
+# Source: k8s-extension/templates/services.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: k8s-monitor-service
+  namespace: default
+spec:
+  selector:
+    name: k8s-monitor
+    type: ClusterIP
+  ports:
+    - name: "k8s-monitor"
+      port: 9090
+      targetPort: 9090
+status:
+  loadBalancer: {}
+---
+# Source: k8s-extension/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ocbc-extension
+  namespace: default
+  labels:
+    app: ocbc-extension
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ocbc-extension
+  template:
+    metadata:
+      labels:
+       app: ocbc-extension
+    spec:
+      imagePullSecrets:
+        - name: ecr-secret
+      serviceAccountName: k8s-monitor-sa
+      securityContext:
+        fsGroup: 1000
+      containers:
+        - name: appd-infra-agent
+          securityContext:
+            {}
+          image: "118762700218.dkr.ecr.us-west-2.amazonaws.com/appdynamics/cluster-agent:ext-26Nov.10"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 9090
+              protocol: TCP
+          resources:
+            limits:
+              cpu: "0.6"
+              memory: 2Gi
+            requests:
+              cpu: "0.3"
+              memory: 1G
+          envFrom:
+            - configMapRef:
+                name: ma-config-ext
+            - secretRef:
+                name: appd-secret
+          volumeMounts:
+            - name: ma-config-volume-ext
+              mountPath: /opt/appdynamics/MachineAgent/conf/logging/log4j.xml
+              subPath: log4j.xml
+            - name: config-volume
+              mountPath: /opt/appdynamics/MachineAgent/monitors/KubernetesSnapshotExtension/config.yml
+              subPath: config.yml
+            
+      volumes:
+        - name: ma-config-volume-ext
+          configMap:
+            name: ma-log-config-ext
+        - name: config-volume
+          configMap:
+            name: k8sext-config
+        
+      restartPolicy: Always
+---
+# Source: k8s-extension/templates/ma-config.yaml
+apiVersion: v1
+data:
+  ACCOUNT_NAME: 'customer1' #<account name>
+  APPLICATION_NAME: 'ocbc-extension' #<name of the application where metrics will be stored>  e.g. Cluster-01
+  TIER_NAME: 'ocbc-extension-tier' # WARNING: if you change this value, update it in the metricPrefix setting above and the TIER_NAME in ma-config.yaml  # if you change this value, it must be also updated in k8sext-config.yaml
+  GLOBAL_ACCOUNT_NAME: 'customer1_493d8590-56fb-462a-96e3-4b6e82e1b7a5' #<global account name>
+  CONTROLLER_HOST: 'host.minikube.internal' #<controller dns>
+  CONTROLLER_PORT: '8080' #<controller port> e.g. "8090"
+  CONTROLLER_SSL_ENABLED: 'false' #"true" if https, otherwise "false"
+  EVENTS_API_URL: 'https://syd-ana-api.saas.appdynamics.com' #<event service endpoint in format protocol://host:port>
+  REST_API_URL: 'http://host.minikube.internal:8080/controller/'  #<protocol://controller dns>:<port>/controller/ e.g. https://myappd.com:8090/controller/
+  METRIC_LIMIT: '900000'
+  UNIQUE_HOSTID: 'K8s-Monitor'
+  kind: ConfigMap
+metadata:
+  name: ma-config-ext
+  namespace: default
+---
+# Source: k8s-extension/templates/ma-sa-rbac.yaml
+#apiVersion: policy/v1beta1
+#kind: PodSecurityPolicy
+#metadata:
+#  name: ocbc-extension
+#  annotations:
+#    seccomp.security.alpha.kubernetes.io/allowedProfileNames: '*'
+#spec:
+#  privileged: true
+#  allowPrivilegeEscalation: true
+#  allowedCapabilities:
+#    - '*'
+#  volumes:
+#    - '*'
+#  hostNetwork: true
+#  hostIPC: true
+#  hostPID: true
+#  hostPorts:
+#    - min: 0
+#      max: 65535
+#  runAsUser:
+#    rule: 'RunAsAny'
+#  seLinux:
+#    rule: 'RunAsAny'
+#  supplementalGroups:
+#    rule: 'RunAsAny'
+#  fsGroup:
+#    rule: 'RunAsAny'
