@@ -13,6 +13,7 @@ import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_ENTITY_TYPE_P
 import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_ENTITY_TYPE_POD_RESOURCE_QUOTA;
 import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_ENTITY_TYPE_POD_STATUS_MONITOR;
 import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_ENTITY_TYPE_REPLICA;
+import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_ENTITY_TYPE_POD_METRICS;
 import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_NODE_ENTITIES;
 import static com.appdynamics.monitors.kubernetes.Constants.DEFAULT_METRIC_PREFIX;
 
@@ -35,6 +36,7 @@ import com.appdynamics.monitors.kubernetes.SnapshotTasks.DaemonSnapshotRunner;
 import com.appdynamics.monitors.kubernetes.SnapshotTasks.DeploymentSnapshotRunner;
 import com.appdynamics.monitors.kubernetes.SnapshotTasks.EndpointSnapshotRunner;
 import com.appdynamics.monitors.kubernetes.SnapshotTasks.EventSnapshotRunner;
+import com.appdynamics.monitors.kubernetes.SnapshotTasks.NamespacePodMetricsSnapshotRunner;
 import com.appdynamics.monitors.kubernetes.SnapshotTasks.NamespaceQuotaUtilizationSnapshotRunner;
 import com.appdynamics.monitors.kubernetes.SnapshotTasks.NodeSnapshotRunner;
 import com.appdynamics.monitors.kubernetes.SnapshotTasks.NodeWiseNotRunningPodsSnapshotRunner;
@@ -69,7 +71,8 @@ public class KubernetesSnapshotExtension extends ABaseMonitor {
             CONFIG_ENTITY_TYPE_POD_RESOURCE_QUOTA,
             CONFIG_ENTITY_TYPE_POD_CRASH_STATUS,
             CONFIG_ENTITY_TYPE_NAMESPACE_QUOTA_UTILIZATION,
-            CONFIG_ENTITY_TYPE_NOT_RUNNING_PODS_PER_NODE
+            CONFIG_ENTITY_TYPE_NOT_RUNNING_PODS_PER_NODE,
+    		CONFIG_ENTITY_TYPE_POD_METRICS
             
     };
 
@@ -216,6 +219,9 @@ public class KubernetesSnapshotExtension extends ABaseMonitor {
             case CONFIG_ENTITY_TYPE_NAMESPACE_QUOTA_UTILIZATION:
                 task = new NamespaceQuotaUtilizationSnapshotRunner(tasksExecutionServiceProvider, config, latch);
                 break;              
+            case CONFIG_ENTITY_TYPE_POD_METRICS:
+                task = new NamespacePodMetricsSnapshotRunner(tasksExecutionServiceProvider, config, latch);
+                break;  
                 
         }
         return task;

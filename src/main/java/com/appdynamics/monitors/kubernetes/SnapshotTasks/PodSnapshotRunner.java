@@ -84,7 +84,7 @@ public class PodSnapshotRunner extends SnapshotRunnerBase {
             try {
                 V1PodList podList=Globals.K8S_POD_LIST;
 
-  
+
                 createPodPayload(podList, config, publishUrl, accountName, apiKey);
 
                 //build and update metrics
@@ -97,16 +97,16 @@ public class PodSnapshotRunner extends SnapshotRunnerBase {
             } catch (Exception e) {
                 countDownLatch.countDown();
                 logger.error("Failed to push POD data", e);
-            } 
+            }
         }
     }
 
-     ArrayNode createPodPayload(V1PodList podList, Map<String, String> config, URL publishUrl, String accountName, String apiKey) throws ApiException{
+    ArrayNode createPodPayload(V1PodList podList, Map<String, String> config, URL publishUrl, String accountName, String apiKey) throws ApiException{
         ObjectMapper mapper = new ObjectMapper();
         ArrayNode arrayNode = mapper.createArrayNode();
 
         long batchSize = Long.parseLong(config.get(CONFIG_RECS_BATCH_SIZE));
-                
+
         for(V1Pod podItem : podList.getItems()){
 
             ObjectNode podObject = mapper.createObjectNode();
@@ -124,10 +124,10 @@ public class PodSnapshotRunner extends SnapshotRunnerBase {
             String clusterName = Utilities.ensureClusterName(config, podItem.getMetadata().getClusterName());
 
             ObjectNode labelsObject = Utilities.getResourceLabels(config,mapper, podItem);
-            podObject=checkAddObject(podObject, labelsObject, "customLabels") ; 
+            podObject=checkAddObject(podObject, labelsObject, "customLabels") ;
 
-            
-            
+
+
             SummaryObj summary = getSummaryMap().get(ALL);
             if (summary == null) {
                 summary = initPodSummaryObject(config, ALL, ALL);
@@ -212,7 +212,7 @@ public class PodSnapshotRunner extends SnapshotRunnerBase {
                 podObject = checkAddObject(podObject, tolerations, "tolerations");
             }
 
-             if (podItem.getSpec().getAffinity() != null) {
+            if (podItem.getSpec().getAffinity() != null) {
                 V1NodeAffinity affinity = podItem.getSpec().getAffinity().getNodeAffinity();
                 if (affinity != null) {
                     Utilities.incrementField(summary, "HasNodeAffinity");
@@ -282,9 +282,9 @@ public class PodSnapshotRunner extends SnapshotRunnerBase {
                 Utilities.incrementField(summaryNamespace, "Running");
                 Utilities.incrementField(summaryNode, "Running");
             }
-            
+
             if (!"Running".equalsIgnoreCase(phase)) {
-            	Utilities.incrementField(summaryNode, "NotRunningPodCount");
+                Utilities.incrementField(summaryNode, "NotRunningPodCount");
             }
 
             podObject = checkAddObject(podObject, podItem.getStatus().getPodIP(), "podIP");
@@ -312,7 +312,7 @@ public class PodSnapshotRunner extends SnapshotRunnerBase {
             String images = "";
             String waitReasons = "";
             String termReasons = "";
-    	    StringBuilder containerStatusBuilder = new StringBuilder();
+            StringBuilder containerStatusBuilder = new StringBuilder();
 
             if (podItem.getStatus().getContainerStatuses() != null){
                 for(V1ContainerStatus status : podItem.getStatus().getContainerStatuses()){
@@ -335,16 +335,16 @@ public class PodSnapshotRunner extends SnapshotRunnerBase {
                         podObject = checkAddObject(podObject, status.getState().getRunning().getStartedAt(), "runningStartTime");
                     }
                     String containerName = status.getName();
-	                String containerState = getContainerState(status.getState());
-	                containerStatusBuilder.append(containerName).append(": ").append(containerState).append(", ");
+                    String containerState = getContainerState(status.getState());
+                    containerStatusBuilder.append(containerName).append(": ").append(containerState).append(", ");
                 }
                 //container data
-               if(containerStatusBuilder.length()>1)
-               {
-            	   podObject = checkAddObject(podObject, containerStatusBuilder.substring(0, containerStatusBuilder.length()-2), "containerStates");	
-               }else{
-            	   podObject = checkAddObject(podObject, "", "containerStates");
-               }
+                if(containerStatusBuilder.length()>1)
+                {
+                    podObject = checkAddObject(podObject, containerStatusBuilder.substring(0, containerStatusBuilder.length()-2), "containerStates");
+                }else{
+                    podObject = checkAddObject(podObject, "", "containerStates");
+                }
                 podObject = checkAddObject(podObject, images, "images");
                 podObject = checkAddObject(podObject, waitReasons, "waitReasons");
                 podObject = checkAddObject(podObject, termReasons, "termReasons");
@@ -404,19 +404,19 @@ public class PodSnapshotRunner extends SnapshotRunnerBase {
                         limitsDefined = true;
                     }
 
-                 if (container.getResources().getLimits() != null) {
-                     Set<Map.Entry<String, Quantity>> setLimits = container.getResources().getLimits().entrySet();
-                     for (Map.Entry<String, Quantity> s : setLimits) {
-                         if (s.getKey().equals("memory")) {
-                             memLimit += s.getValue().getNumber().divide(new BigDecimal(1000000)).floatValue(); //MB
+                    if (container.getResources().getLimits() != null) {
+                        Set<Map.Entry<String, Quantity>> setLimits = container.getResources().getLimits().entrySet();
+                        for (Map.Entry<String, Quantity> s : setLimits) {
+                            if (s.getKey().equals("memory")) {
+                                memLimit += s.getValue().getNumber().divide(new BigDecimal(1000000)).floatValue(); //MB
 
-                         }
-                         if (s.getKey().equals("cpu")) {
-                             cpuLimit += s.getValue().getNumber().floatValue();
-                         }
-                     }
-                     limitsDefined = true;
-                 }
+                            }
+                            if (s.getKey().equals("cpu")) {
+                                cpuLimit += s.getValue().getNumber().floatValue();
+                            }
+                        }
+                        limitsDefined = true;
+                    }
                 }
                 if (container.getVolumeMounts() != null){
 
@@ -429,8 +429,8 @@ public class PodSnapshotRunner extends SnapshotRunnerBase {
             }
 
             podObject = checkAddBoolean(podObject, limitsDefined, "limitsDefined");
-            
-            
+
+
 
             podObject =  checkAddFloat(podObject, cpuRequest, "cpuRequest");
             podObject =  checkAddFloat(podObject, memRequest, "memRequest");
@@ -482,14 +482,14 @@ public class PodSnapshotRunner extends SnapshotRunnerBase {
             podObject = checkAddInt(podObject, numLive, "liveProbes");
             podObject = checkAddInt(podObject, numReady, "readyProbes");
             podObject = checkAddInt(podObject, numPrivileged, "numPrivileged");
-            
+
             podObject = checkAddObject(podObject, getDeploymentName(podItem), "deploymentName");
             if(!OPENSHIFT_VERSION.isEmpty()) {
-            	podObject = checkAddObject(podObject,OPENSHIFT_VERSION,"openshiftVersion");
+                podObject = checkAddObject(podObject,OPENSHIFT_VERSION,"openshiftVersion");
             }
             if(!K8S_VERSION.isEmpty()) {
-	        	podObject = checkAddObject(podObject,K8S_VERSION, "kubernetesVersion");	        	
-	        }
+                podObject = checkAddObject(podObject,K8S_VERSION, "kubernetesVersion");
+            }
             arrayNode.add(podObject);
             if (arrayNode.size() >= batchSize){
                 logger.info("Sending batch of {} Pod records", arrayNode.size());
@@ -501,31 +501,31 @@ public class PodSnapshotRunner extends SnapshotRunnerBase {
                 }
             }
         }
-         if (arrayNode.size() > 0){
-             logger.info("Sending last batch of {} Pod records", arrayNode.size());
-             String payload = arrayNode.toString();
-             arrayNode = arrayNode.removeAll();
-             if(!payload.equals("[]")){
-                 UploadEventsTask uploadEventsTask = new UploadEventsTask(getTaskName(), config, publishUrl, accountName, apiKey, payload);
-                 getConfiguration().getExecutorService().execute("UploadPodData", uploadEventsTask);
-             }
-         }
+        if (arrayNode.size() > 0){
+            logger.info("Sending last batch of {} Pod records", arrayNode.size());
+            String payload = arrayNode.toString();
+            arrayNode = arrayNode.removeAll();
+            if(!payload.equals("[]")){
+                UploadEventsTask uploadEventsTask = new UploadEventsTask(getTaskName(), config, publishUrl, accountName, apiKey, payload);
+                getConfiguration().getExecutorService().execute("UploadPodData", uploadEventsTask);
+            }
+        }
         return  arrayNode;
     }
 
 
-    
-     private String getDeploymentName(V1Pod pod) throws ApiException {
-		 // Get the metadata of the pod
+
+    private String getDeploymentName(V1Pod pod) throws ApiException {
+        // Get the metadata of the pod
         V1ObjectMeta metadata = pod.getMetadata();
 
         // Get the owner references from the pod's metadata
         List<V1OwnerReference> ownerReferences = metadata.getOwnerReferences();
-        
+
 
 
         AppsV1Api appsApi = new AppsV1Api();
-        
+
         // Find the owner reference with the "ReplicaSet" kind
         V1OwnerReference replicaSetReference = null;
         if (ownerReferences !=null) {
@@ -548,28 +548,28 @@ public class PodSnapshotRunner extends SnapshotRunnerBase {
                 // Find the owner reference with the "Deployment" kind
                 V1OwnerReference deploymentReference = null;
                 if(rsOwnerReferences!=null) {
-	                for (V1OwnerReference ref : rsOwnerReferences) {
-	                    if (ref.getKind().equals("Deployment")) {
-	                        deploymentReference = ref;
-	                        break;
-	                    }
-	                }
+                    for (V1OwnerReference ref : rsOwnerReferences) {
+                        if (ref.getKind().equals("Deployment")) {
+                            deploymentReference = ref;
+                            break;
+                        }
+                    }
                 }
                 else {
-                	
-                	logger.info("rsOwnerReferences is null for {} and {}",replicaSetName , replicaSet.getMetadata().getName() );
+
+                    logger.info("rsOwnerReferences is null for {} and {}",replicaSetName , replicaSet.getMetadata().getName() );
                 }
 
                 if (deploymentReference != null) {
                     String deploymentName = deploymentReference.getName();
-                   return deploymentName;
+                    return deploymentName;
                 }
-            } 
+            }
         }
-		return "";
-	}
-	
- 	
+        return "";
+    }
+
+
     protected SummaryObj initDefaultSummaryObject(Map<String, String> config){
         return initPodSummaryObject(config, ALL, ALL);
     }
@@ -683,17 +683,17 @@ public class PodSnapshotRunner extends SnapshotRunnerBase {
         }
         return metricsList;
     }
-    
-	private String getContainerState(V1ContainerState containerState) {
-	    if (containerState.getWaiting() != null) {
-	        return "Waiting: " + containerState.getWaiting().getReason();
-	    } else if (containerState.getTerminated() != null) {
-	        return "Terminated: " + containerState.getTerminated().getReason();
-	    } else if (containerState.getRunning() != null) {
-	        return "Running";
-	    } else {
-	        return "Unknown";
-	    }
-	}
+
+    private String getContainerState(V1ContainerState containerState) {
+        if (containerState.getWaiting() != null) {
+            return "Waiting: " + containerState.getWaiting().getReason();
+        } else if (containerState.getTerminated() != null) {
+            return "Terminated: " + containerState.getTerminated().getReason();
+        } else if (containerState.getRunning() != null) {
+            return "Running";
+        } else {
+            return "Unknown";
+        }
+    }
 }
 

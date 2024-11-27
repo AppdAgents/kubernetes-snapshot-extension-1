@@ -46,6 +46,8 @@ data:
     notRunningPodCountPerNodeSchemaName: "k8s_not_running_pod_count_per_node_snapshots"
     
     podsCrashStatusSchemaName: "k8s_pod_crash_status_snapshots"
+    
+    podsMetricsSchemaName: "k8s_pod_metrics_snapshots"
 
     batchSize: "100"
 
@@ -69,6 +71,7 @@ data:
     - type: "podCrashStatus"
     - type: "namespaceQuotaUtilization"
     - type: "notRunningPodsPerNode"
+    - type: "podMetrics"
 
     # list of nodes to collect metrics for. If all nodes need to be monitored, set name to "all"
     nodes:
@@ -112,6 +115,7 @@ data:
           "creationTimestamp": "date",
           "deletionTimestamp": "date",
           "labels": "string",
+          "podName": "string",
           "annotations": "string",
           "name": "string",
           "namespace": "string",
@@ -373,6 +377,29 @@ data:
          "containerPhase": "string",
          "crashCount": "integer",
          "restartCount": "integer"
+        }
+      }'
+
+    podsMetricsSchemaDefinition: '{
+      "schema": {
+         "clusterName": "string",
+         "customLabels": "string",
+         "nodeName": "string",
+         "namespace": "string",
+         "containers": "string",
+         "podName": "string",
+         "errorReason": "string",
+         "containerPhase": "string",
+         "crashCount": "integer",
+         "restartCount": "integer"
+         "cpuRequestUsed": "float",
+         "cpuRequestTotal": "float",
+         "cpuLimitsUsed": "float",
+         "cpuLimitsTotal": "float",
+         "memoryRequestUsed": "float",
+         "memoryRequestTotal": "float",
+         "memoryLimitsUsed": "float",
+         "memoryLimitsTotal": "float"
         }
       }'
 kind: ConfigMap

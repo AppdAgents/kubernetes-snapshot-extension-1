@@ -43,6 +43,7 @@ public class UploadMetricsTask implements Runnable{
 
         }
         catch(Exception e){
+        	e.printStackTrace();
             countDownLatch.countDown();
             logger.error(e.getMessage());
         }
