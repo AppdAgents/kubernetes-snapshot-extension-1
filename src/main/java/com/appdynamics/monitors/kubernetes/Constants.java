@@ -16,6 +16,7 @@ public class Constants {
     public static final String CONFIG_APP_TIER_NAME = "appTierName";
     public static final String CONFIG_NODE_ENTITIES = "entities";
     public static final String CONFIG_NODE_NODES = "nodes";
+    public static final String CONFIG_NODE_PODS = "pods";
     public static final String CONFIG_NODE_NAMESPACES = "namespaces";
     public static final String CONFIG_EVENTS_URL = "eventsUrl";
     public static final String CONFIG_CONTROLLER_URL = "controllerUrl";
@@ -31,7 +32,8 @@ public class Constants {
     public static final String CONFIG_ENTITY_TYPE_DAEMON = "daemon";
     public static final String CONFIG_ENTITY_TYPE_REPLICA = "replica";
     public static final String CONFIG_ENTITY_TYPE_ENDPOINT = "endpoint";
-    
+    public static final String CONFIG_ENTITY_TYPE_POD_METRICS = "podMetrics";
+
     
     public static final String CONFIG_ENTITY_TYPE_POD_STATUS_MONITOR = "podStatusMonitor";
     public static final String CONFIG_ENTITY_TYPE_POD_RESOURCE_QUOTA = "podResourceQuota";
@@ -43,7 +45,9 @@ public class Constants {
     
 
     public static final String CONFIG_SCHEMA_DEF_POD = "podsSchemaDefinition";
+    public static final String CONFIG_SCHEMA_DEF_POD_METRICS = "podsMetricsSchemaDefinition";
     public static final String CONFIG_SCHEMA_NAME_POD = "podsSchemaName";
+    public static final String CONFIG_SCHEMA_NAME_POD_METRICS = "podsMetricsSchemaName";
 
     public static final String CONFIG_SCHEMA_DEF_NODE = "nodeSchemaDefinition";
     public static final String CONFIG_SCHEMA_NAME_NODE = "nodeSchemaName";

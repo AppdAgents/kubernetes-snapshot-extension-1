@@ -109,6 +109,11 @@ public class Utilities {
         }
         return should;
     }
+    
+    public static boolean shouldCollectMetricsForPod(MonitorConfiguration configuration, String pod){
+       
+        return true;
+    }
 
     public static boolean shouldCollectMetricsForNamespace(MonitorConfiguration configuration, String ns){
         boolean should = false;
@@ -385,6 +390,31 @@ public class Utilities {
     }
     
     
+    public static String getPodsMetricsPath(Map<String, String> config, String namespace){
+
+        if (namespace.isEmpty()){
+        	 return getMetricsPath(config);
+            
+        }
+        String str=String.format("%s%s%s%s%s", Utilities.getMetricsPath(config), METRIC_SEPARATOR, METRIC_PATH_NAMESPACES, METRIC_SEPARATOR, namespace);
+        return str;
+       
+    }
+    
+    public static String getPodsMetricsPath(Map<String, String> config, String namespace, String podName){
+
+        if (podName.isEmpty()){
+        	 return getMetricsPath(config);
+            
+        }
+        String str=String.format("%s%s%s%s%s%s%s", Utilities.getMetricsPath(config), METRIC_SEPARATOR, METRIC_PATH_NAMESPACES, METRIC_SEPARATOR, namespace,METRIC_SEPARATOR, podName);
+        
+
+        return str;
+       
+    }
+
+    
     public static String getMetricsPath(Map<String, String> config, String microService){
 
         if (microService.isEmpty()){
@@ -413,6 +443,16 @@ public class Utilities {
        
 
         return getMetricsPath(config);
+    }
+    
+    
+    public static String getMetricsPath(Map<String, String> config, String namespace, String node,String podName,boolean pod){
+      
+            return String.format("%s%s%s%s%s%s%s", Utilities.getMetricsPath(config), METRIC_SEPARATOR, METRIC_PATH_NAMESPACES,METRIC_SEPARATOR,namespace ,METRIC_SEPARATOR,podName);
+       
+       
+
+       // return getMetricsPath(config);
     }
     
 

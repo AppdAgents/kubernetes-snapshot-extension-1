@@ -196,7 +196,7 @@ public abstract class SnapshotRunnerBase implements AMonitorTaskRunnable {
             while (nodes.hasNext()){
                 Map.Entry<String, JsonNode> entry = nodes.next();
                 String fieldName = entry.getKey();
-                if (!fieldName.equals("batch_ts") && !fieldName.equals("nodename") && !fieldName.equals("namespace") && !fieldName.equalsIgnoreCase("msServiceName")) {
+                if (!fieldName.equals("batch_ts") && !fieldName.equals("nodename") && !fieldName.equals("namespace") && !fieldName.equalsIgnoreCase("msServiceName") && !fieldName.equalsIgnoreCase("podName")) {
                     String path = String.format("%s%s%s", summaryObj.getPath(), METRIC_SEPARATOR, fieldName);
                     String val = entry.getValue().asText();
                     Metric m = new Metric(fieldName, val, path, "OBSERVATION", "CURRENT", "INDIVIDUAL");

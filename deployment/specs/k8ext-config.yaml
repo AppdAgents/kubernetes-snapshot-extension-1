@@ -110,6 +110,7 @@ data:
           "creationTimestamp": "date",
           "deletionTimestamp": "date",
           "labels": "string",
+          "podName": "string",
           "annotations": "string",
           "name": "string",
           "namespace": "string",
@@ -186,6 +187,8 @@ data:
           "notRunningPodCount":"integer"
       }
     }'
+    
+    
 
     eventsSchemaDefinition: '{
        "schema" : {

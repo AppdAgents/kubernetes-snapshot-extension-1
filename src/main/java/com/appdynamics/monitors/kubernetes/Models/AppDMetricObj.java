@@ -17,6 +17,7 @@ public class AppDMetricObj {
     private String msServiceName = "";
     private String levelName = "";
     private String level = "";
+    private String podName = "";
 
     public AppDMetricObj(){
 
@@ -36,6 +37,21 @@ public class AppDMetricObj {
         this.namespace = namespace;
         this.node = node;
         this.msServiceName = msServiceName;
+    }
+    
+    public AppDMetricObj(String name, String parentSchema, String schemaDefinitionName, String query, String rootPath, String namespace, String node,String msServiceName,String podName){
+        this.name = name;
+        this.parentSchema = parentSchema;
+        this.setParentSchemaDefinition(schemaDefinitionName);
+        this.query = query;
+        this.searchToken = String.format("q-%s", this.name);
+        this.healthRuleToken = String.format("hr-%s", this.name);
+        this.metricToken = String.format("m-%s", this.name);
+        this.setPath(rootPath + this.name);
+        this.setWidgetName(this.metricToken);
+        this.namespace = namespace;
+        this.node = node;
+        this.podName=podName;
     }
 
     public String getName() {
@@ -107,7 +123,10 @@ public class AppDMetricObj {
     }
 
     public String getLevelName(){
-        if(namespace != null && !namespace.equals(ALL)){
+    	if(podName != null && !podName.equals(ALL)){
+            return podName;
+        }
+    	if(namespace != null && !namespace.equals(ALL)){
             return namespace;
         }
         else if (node != null && !node.equals(ALL)){
@@ -120,6 +139,9 @@ public class AppDMetricObj {
     }
 
     public String getLevel(){
+    	if(podName != null && !podName.equals(ALL)){
+            return "pod";
+        }
         if(namespace != null && !namespace.equals(ALL)){
             return "namespace";
         }
@@ -131,5 +153,5 @@ public class AppDMetricObj {
         }
         return "";
     }
-    
+
 }
