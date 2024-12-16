@@ -1,4 +1,8 @@
 apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.maConfigMapName }}
+  namespace: {{.Release.Namespace}}
 data:
   ACCOUNT_NAME: '{{ required "AppDynamics controller Account Name is required!" .Values.controllerInfo.accountName }}' #<account name>
   APPLICATION_NAME: '{{ .Values.extensionConfig.appName | default "k8s-monitor"}}' #<name of the application where metrics will be stored>  e.g. Cluster-01
@@ -18,7 +22,3 @@ data:
   {{- end }}
   {{ end -}}
   {{ end -}}
-kind: ConfigMap
-metadata:
-  name: {{ .Values.maConfigMapName }}
-  namespace: {{.Release.Namespace}}
