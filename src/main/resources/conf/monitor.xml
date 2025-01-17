@@ -5,12 +5,12 @@
     <monitor-configuration/>
     <monitor-run-task>
         <execution-style>periodic</execution-style>
-        <execution-frequency-in-seconds>210</execution-frequency-in-seconds>
+        <execution-frequency-in-seconds>60</execution-frequency-in-seconds>
         <name>Kubernetes Snapshot Extension Run task</name>
         <display-name>Kubernetes Snapshot Extension Run task</display-name>
         <description>Kubernetes Snapshot Extension Run task</description>
         <type>java</type>
-        <execution-timeout-in-secs>45</execution-timeout-in-secs>
+        <execution-timeout-in-secs>60</execution-timeout-in-secs>
         <task-arguments>
             <argument name="config-file" is-required="true" default-value="monitors/KubernetesSnapshotExtension/config.yml" />
         </task-arguments>
