@@ -1,0 +1,14 @@
+{{ with .Values.customCert -}}
+{{ if .enabled -}}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: appd-truststore-secret
+type: Opaque
+stringData:
+  TRUSTSTORE_PASSWORD: {{ .trustStorePassword }}
+  # Assuming the truststore file is encoded in base64
+  TRUSTSTORE_JKS: |
+   {{ .trustStoreJKS }}
+{{- end }}
+{{- end }}
