@@ -22,19 +22,19 @@ data:
       </Appenders>
 
     <Loggers>
-        <Logger name="com.singularity" level="error" additivity="false">
+        <Logger name="com.singularity" level="INFO" additivity="false">
             <AppenderRef ref="FileAppender"/>
         </Logger>
-        <Logger name="com.appdynamics" level="error" additivity="false">
+        <Logger name="com.appdynamics" level="INFO" additivity="false">
             <AppenderRef ref="FileAppender"/>
         </Logger>
-         <Logger name="com.appdynamics.monitors.kubernetes" level="error" additivity="false">
+         <Logger name="com.appdynamics.monitors.kubernetes" level="INFO" additivity="false">
             <AppenderRef ref="FileAppender"/>
         </Logger>
-        <Logger name="com.singularity.ee.agent.systemagent.task.sigar.SigarAppAgentMonitor" level="error" additivity="false">
+        <Logger name="com.singularity.ee.agent.systemagent.task.sigar.SigarAppAgentMonitor" level="INFO" additivity="false">
             <AppenderRef ref="FileAppender"/>
         </Logger>
-        <Root level="error">
+        <Root level="INFO">
             <AppenderRef ref="FileAppender"/>
         </Root>
     </Loggers>

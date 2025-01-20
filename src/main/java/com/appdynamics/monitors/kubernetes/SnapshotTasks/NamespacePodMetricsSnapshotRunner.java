@@ -96,7 +96,7 @@ public class NamespacePodMetricsSnapshotRunner extends SnapshotRunnerBase {
 
                 List<Metric> metricList = getMetricsFromSummary(getSummaryMap(), config);
                 logger.info("About to send {} Pod metrics", metricList.size());
-
+                
                 UploadMetricsTask metricsTask = new UploadMetricsTask(
                     getConfiguration(),
                     getServiceProvider().getMetricWriteHelper(),
@@ -170,8 +170,6 @@ public class NamespacePodMetricsSnapshotRunner extends SnapshotRunnerBase {
                 if (podMetrics.getMetadata().getName().equals(pod.getMetadata().getName())) {
                     for (ContainerMetrics containerMetric : podMetrics.getContainers()) {
                         if (containerMetric.getName().equals(containerName)) {
-                            logger.info("Raw CPU usage for {}: {}", containerName, containerMetric.getUsage().get("cpu"));
-                            logger.info("Raw Memory usage for {}: {}", containerName, containerMetric.getUsage().get("memory"));
 
                             Quantity cpuQuantity = containerMetric.getUsage().get("cpu");
                             cpuUsage = convertCpuQuantityToCores(cpuQuantity);

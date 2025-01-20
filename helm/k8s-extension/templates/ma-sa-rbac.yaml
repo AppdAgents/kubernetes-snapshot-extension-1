@@ -150,30 +150,30 @@ roleRef:
   name: clusterversions-reader
   apiGroup: rbac.authorization.k8s.io
 ---
-apiVersion: policy/v1beta1
-kind: PodSecurityPolicy
-metadata:
-  name: {{ .Values.extensionConfig.appName }}
-  annotations:
-    seccomp.security.alpha.kubernetes.io/allowedProfileNames: '*'
-spec:
-  privileged: true
-  allowPrivilegeEscalation: true
-  allowedCapabilities:
-    - '*'
-  volumes:
-    - '*'
-  hostNetwork: true
-  hostIPC: true
-  hostPID: true
-  hostPorts:
-    - min: 0
-      max: 65535
-  runAsUser:
-    rule: 'RunAsAny'
-  seLinux:
-    rule: 'RunAsAny'
-  supplementalGroups:
-    rule: 'RunAsAny'
-  fsGroup:
-    rule: 'RunAsAny'
+#apiVersion: policy/v1beta1
+#kind: PodSecurityPolicy
+#metadata:
+#  name: {{ .Values.extensionConfig.appName }}
+#  annotations:
+#    seccomp.security.alpha.kubernetes.io/allowedProfileNames: '*'
+#spec:
+#  privileged: true
+#  allowPrivilegeEscalation: true
+#  allowedCapabilities:
+#    - '*'
+#  volumes:
+#    - '*'
+#  hostNetwork: true
+#  hostIPC: true
+#  hostPID: true
+#  hostPorts:
+#    - min: 0
+#      max: 65535
+#  runAsUser:
+#    rule: 'RunAsAny'
+#  seLinux:
+#    rule: 'RunAsAny'
+#  supplementalGroups:
+#    rule: 'RunAsAny'
+#  fsGroup:
+#    rule: 'RunAsAny'

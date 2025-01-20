@@ -3,7 +3,7 @@
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 EXTENSION_ROOT_DIR=${PWD}
 CONTEXT_DIR=""
-HELM_CHARTS_VERSION="1.0"
+HELM_CHARTS_VERSION="2.0"
 GITHUB_ORGANIZATION="AppdAgents"
 GITHUB_PASSWORD=""
 GITHUB_USERNAME="AppdAgents"
@@ -91,13 +91,13 @@ function pushToAppdHelmChartsRepo() {
     git commit -m "Updated the file on $HELM_CHARTS_VERSION Release"
     git add .
     git commit -m "latest extension charts"
-    # This should be uncommented to publish charges
-#    if git  push origin master --force
-#    then
-#     printf '\nSuccessfully uploaded the files on k8s-extension-charts github repo \n'
-#    else
-#     printf "\ngit push failed\n"
-#    fi
+    This should be uncommented to publish charges
+   if git  push origin master --force
+   then
+    printf '\nSuccessfully uploaded the files on k8s-extension-charts github repo \n'
+   else
+    printf "\ngit push failed\n"
+   fi
     cd ../..
 }
 function createHelmCharts() {
